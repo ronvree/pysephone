@@ -1,0 +1,26 @@
+[build-system]
+requires = ["setuptools>=64"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "pysephone"
+version = "0.1.0"
+description = "TODO"
+authors = [
+    { name = "TODO" }
+]
+license = { file = "LICENSE" }
+requires-python = ">=3.14"
+dependencies = [
+    "pandas",
+    "requests",
+    "tqdm",
+    "unidecode",
+    "tables",
+    "openmeteo-requests",
+    "requests-cache",
+    "retry-requests",
+]
+
+[tool.setuptools.packages.find]
+where = ["src"]

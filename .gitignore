@@ -1,0 +1,28 @@
+# Credentials
+**/credentials.txt
+**/openmeteo_api_key.txt
+
+# Data (runtime-downloaded data; use PYSEPHONE_DATA_ROOT=<repo_root> to store here)
+/data/
+
+# Environment
+.env
+
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.pytest_cache/
+dist/
+build/
+.venv/
+venv/
+
+# Outputs
+outputs/
+
+# Claude Code
+CLAUDE.md
+
+# Jupyter
+.ipynb_checkpoints/
