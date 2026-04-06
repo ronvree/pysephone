@@ -45,7 +45,8 @@ _STORE_KEY_TEMPLATE = "/openmeteo/{step}/{data_key}/group_{group_key}/src_{src_k
 _API_KEY_FILENAME = 'openmeteo_api_key.txt'
 
 # Delay between download requests
-_DOWNLOAD_DELAY = 0.01  # seconds
+# _DOWNLOAD_DELAY = 0.01  # seconds
+_DOWNLOAD_DELAY = 1  # seconds
 
 # Data compression settings (DON'T CHANGE — would corrupt existing stores)
 _STORE_COMP_LIB = 'zlib'

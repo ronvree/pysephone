@@ -4,6 +4,7 @@ Abstract base class for phenology models.
 
 from __future__ import annotations
 
+import argparse
 import pickle
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
@@ -144,6 +145,31 @@ class BaseModel(ABC):
             model_kwargs=model_args.model_kwargs,
             **kwargs,
         )
+
+    @classmethod
+    def configure_argparser(cls, parser: argparse.ArgumentParser) -> argparse.ArgumentParser:
+        """Add model-specific CLI arguments to *parser*.
+
+        Override in subclasses that support CLI configuration.
+        The default implementation is a no-op.
+        """
+        return parser
+
+    @classmethod
+    def model_args_from_namespace(cls, args: argparse.Namespace) -> ModelArgs:
+        """Create a :class:`ModelArgs` instance from a parsed namespace.
+
+        Override in subclasses to extract model-specific arguments.
+
+        Args:
+            args: Parsed namespace, typically produced after calling
+                  :meth:`configure_argparser` on the same parser.
+
+        Returns:
+            A :class:`ModelArgs` (or subclass) instance ready to pass to
+            :meth:`fit_from_args`.
+        """
+        return ModelArgs(model_name=getattr(args, 'model_name', None))
 
     def save(self, model_name: str, root=None) -> None:
         """Pickle the model to ``<data_root>/models/<model_name>/<model_name>.pickle``.

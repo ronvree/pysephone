@@ -110,6 +110,29 @@ class BaseTorchModel(BaseModel, nn.Module):
         super().__init__(*args, **kwargs)
         self._batch_size: Optional[int] = None
 
+    @staticmethod
+    def get_default_norm_params() -> Dict[str, Tuple[float, float]]:
+        """Default (mean, std) normalisation parameters for common features.
+
+        Values are derived from typical European phenology datasets.
+        ``daylight_duration`` is in seconds.
+        """
+        return {
+            'temperature_2m':          (8.431772,   7.707247),
+            'is_day':                  (0.3705145,  0.4829339),
+            'precipitation':           (0.09331062, 0.29683942),
+            'relative_humidity_2m':    (78.96578,   14.400801),
+            'soil_moisture_0_to_7cm':  (0.35431248, 0.07339167),
+            'soil_moisture_7_to_28cm': (0.3520766,  0.07325297),
+            'shortwave_radiation':     (121.193474, 190.0891),
+            'temperature_2m_max':      (11.510296,  7.7762413),
+            'temperature_2m_min':      (4.510901,   6.667528),
+            'temperature_2m_mean':     (8.022747,   7.1008506),
+            'daylight_duration':       (42952.715,  10155.233),
+        }
+
+
+
     # ------------------------------------------------------------------
     # Abstract interface
     # ------------------------------------------------------------------

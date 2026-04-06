@@ -21,6 +21,7 @@ Example::
 
 from __future__ import annotations
 
+import argparse
 from dataclasses import dataclass
 from typing import Any, Callable, Dict, Optional, Tuple
 
@@ -48,6 +49,7 @@ class GDDModelArgs(BasePBModelArgs):
     ix_start_fn: Optional[Callable[[Dict[str, Any]], int]] = None
     opt_margin: float = 0.1
     opt_max_steps: Optional[int] = None
+    opt_max_time: Optional[float] = None
 
 
 # ---------------------------------------------------------------------------
@@ -106,6 +108,7 @@ class GDDModel(BasePBModel):
         ix_start_fn: Optional[Callable[[Dict[str, Any]], int]] = None,
         opt_margin: float = 0.1,
         opt_max_steps: Optional[int] = None,
+        opt_max_time: Optional[float] = None,
     ) -> None:
         params: Dict[str, float] = {
             'threshold': threshold,
@@ -136,6 +139,7 @@ class GDDModel(BasePBModel):
             opt_bounds_upper=opt_bounds_upper,
             opt_margin=opt_margin,
             opt_max_steps=opt_max_steps,
+            opt_max_time=opt_max_time,
         )
 
     # ------------------------------------------------------------------
@@ -188,6 +192,8 @@ class GDDModel(BasePBModel):
             model_kwargs['opt_margin'] = model_args.opt_margin
         if model_args.opt_max_steps is not None:
             model_kwargs['opt_max_steps'] = model_args.opt_max_steps
+        if model_args.opt_max_time is not None:
+            model_kwargs['opt_max_time'] = model_args.opt_max_time
 
         return cls.fit(
             target_fn=target_fn,
@@ -196,6 +202,29 @@ class GDDModel(BasePBModel):
             model=model,
             model_kwargs=model_kwargs,
             **kwargs,
+        )
+
+    # ------------------------------------------------------------------
+    # CLI helpers
+    # ------------------------------------------------------------------
+
+    @classmethod
+    def configure_argparser(cls, parser: argparse.ArgumentParser) -> argparse.ArgumentParser:
+        parser.add_argument('--threshold', type=float, default=500.0,
+                            help='Thermal time accumulation threshold (degree-days).')
+        parser.add_argument('--t_base', type=float, default=5.0,
+                            help='Base temperature (°C).')
+        parser.add_argument('--t_upper', type=float, default=None,
+                            help='Optional upper temperature cap (°C).')
+        return parser
+
+    @classmethod
+    def model_args_from_namespace(cls, args: argparse.Namespace) -> GDDModelArgs:
+        return GDDModelArgs(
+            model_name=getattr(args, 'model_name', None),
+            threshold=args.threshold,
+            t_base=args.t_base,
+            t_upper=getattr(args, 't_upper', None),
         )
 
     # ------------------------------------------------------------------

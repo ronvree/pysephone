@@ -15,7 +15,7 @@ def get_repo_root() -> Path:
 
 def get_data_root() -> Path:
     return Path(
-        os.environ.get(ENV_DATA_ROOT, "~/.pysephone")
+        os.environ.get(ENV_DATA_ROOT, get_repo_root())
     ).expanduser()
 
 """
@@ -49,10 +49,10 @@ def get_runs_dir(root: Path) -> Path:
     return root / "runs"
 
 def get_models_dir(root: Path) -> Path:
-    return root / "models"
+    return root / "outputs" / "models"
 
 def get_evaluations_dir(root: Path) -> Path:
-    return root / "evaluations"
+    return root / "outputs" / "evaluations"
 
 def get_datasets_dir(root: Path) -> Path:
     return root / "datasets"

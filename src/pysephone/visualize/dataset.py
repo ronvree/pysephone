@@ -337,14 +337,14 @@ def _setup_map_axes(ax: plt.Axes, gdf_admin, minx, miny, maxx, maxy) -> None:
     if world is not None:
         clipped = world.cx[minx:maxx, miny:maxy]
         clipped.plot(ax=ax, color='#f5f5f2', edgecolor='#aaaaaa', linewidth=0.5)
-    ax.set_xlim(minx, maxx)
-    ax.set_ylim(miny, maxy)
     ax.set_xlabel('Longitude (°)')
     ax.set_ylabel('Latitude (°)')
     ax.set_aspect('equal')
     # Remove grid for maps — geography already provides spatial context
     ax.grid(False)
     ax.set_facecolor('#d9eaf5')
+    # Note: xlim/ylim are NOT set here — callers must set them after all
+    # gdf.plot() calls, since geopandas resets limits on each plot call.
 
 
 # ---------------------------------------------------------------------------
@@ -355,7 +355,7 @@ def observation_map(
     obs: Observations,
     gdf_admin=None,
     map_margin: float = 0.1,
-    figsize: Tuple[float, float] = (7, 6),
+    figsize: Optional[Tuple[float, float]] = None,
     point_size: float = 3,
     alpha: float = 0.55,
 ) -> plt.Figure:
@@ -369,7 +369,8 @@ def observation_map(
         gdf_admin:  Optional :class:`geopandas.GeoDataFrame` of administrative
                     boundaries to use instead of Natural Earth.
         map_margin: Fractional padding around the bounding box (default 0.1).
-        figsize:    Figure dimensions.
+        figsize:    Figure dimensions.  Defaults to a width of 7 in with height
+                    scaled to match the lat/lon aspect ratio of the data.
         point_size: Marker size.
         alpha:      Marker transparency.
 
@@ -379,6 +380,10 @@ def observation_map(
     obs_types = obs.observation_types
     colors = _get_colors(len(obs_types))
     minx, miny, maxx, maxy = _map_bounds(obs, margin=map_margin)
+
+    if figsize is None:
+        w = 7.0
+        figsize = (w, max(3.0, w * (maxy - miny) / (maxx - minx)))
 
     with plt.rc_context(_STYLE):
         fig, ax = plt.subplots(figsize=figsize)
@@ -395,6 +400,8 @@ def observation_map(
         if len(obs_types) > 1:
             ax.legend(fontsize=8, markerscale=2, framealpha=0.8)
 
+        ax.set_xlim(minx, maxx)
+        ax.set_ylim(miny, maxy)
         fig.tight_layout()
     return fig
 
@@ -408,7 +415,7 @@ def observation_map_for_year(
     year: int,
     gdf_admin=None,
     map_margin: float = 0.1,
-    figsize: Tuple[float, float] = (7, 6),
+    figsize: Optional[Tuple[float, float]] = None,
     point_size: float = 4,
     alpha: float = 0.65,
 ) -> plt.Figure:
@@ -419,7 +426,8 @@ def observation_map_for_year(
         year:       Calendar year to visualise.
         gdf_admin:  Optional admin boundaries GeoDataFrame.
         map_margin: Fractional padding around the bounding box.
-        figsize:    Figure dimensions.
+        figsize:    Figure dimensions.  Defaults to a width of 7 in with height
+                    scaled to match the lat/lon aspect ratio of the data.
         point_size: Marker size.
         alpha:      Marker transparency.
 
@@ -429,6 +437,10 @@ def observation_map_for_year(
     obs_types = obs.observation_types
     colors = _get_colors(len(obs_types))
     minx, miny, maxx, maxy = _map_bounds(obs, margin=map_margin)
+
+    if figsize is None:
+        w = 7.0
+        figsize = (w, max(3.0, w * (maxy - miny) / (maxx - minx)))
 
     with plt.rc_context(_STYLE):
         fig, ax = plt.subplots(figsize=figsize)
@@ -446,6 +458,8 @@ def observation_map_for_year(
             ax.legend(fontsize=8, markerscale=2, framealpha=0.8)
 
         ax.set_title(str(year))
+        ax.set_xlim(minx, maxx)
+        ax.set_ylim(miny, maxy)
         fig.tight_layout()
     return fig
 

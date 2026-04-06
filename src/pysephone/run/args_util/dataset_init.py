@@ -3,12 +3,50 @@ Argparse helpers for dataset loading and splitting.
 """
 
 import argparse
-from typing import Optional, Tuple
+from dataclasses import dataclass
+from typing import List, Optional, Tuple
 
 import sklearn.model_selection
 
 from pysephone.dataset.dataset import Dataset
 from pysephone.run.args_util import ExperimentConfigException
+
+
+# ---------------------------------------------------------------------------
+# DatasetArgs dataclass
+# ---------------------------------------------------------------------------
+
+@dataclass
+class DatasetArgs:
+    """Configuration for loading a dataset with calendar and feature providers.
+
+    Attributes:
+        dataset_name:       Registry key passed to :meth:`Dataset.load`.
+        season_start:       Default season start as ``'MM-DD'`` (e.g. ``'10-01'``).
+        season_length:      Default season length in days.
+        feature_keys:       Weather variable names to load.  ``None`` uses the
+                            :class:`~pysephone.dataset.util.openmeteo.OpenMeteoFeatures`
+                            defaults (``temperature_2m_mean``, ``daylight_duration``).
+        download_features:  If ``True`` (default), check for and download any missing
+                            feature data before returning.  Set to ``False`` to skip
+                            the check entirely when you know all data is present.
+    """
+    dataset_name: str = ''
+    season_start: str = '10-01'
+    season_length: int = 365
+    feature_keys: Optional[List[str]] = None
+    download_features: bool = True
+
+
+def dataset_args_from_namespace(args: argparse.Namespace) -> DatasetArgs:
+    """Build a :class:`DatasetArgs` from a parsed :class:`argparse.Namespace`."""
+    return DatasetArgs(
+        dataset_name=args.dataset_name,
+        season_start=getattr(args, 'season_start', '10-01'),
+        season_length=getattr(args, 'season_length', 365),
+        feature_keys=getattr(args, 'feature_keys', None),
+        download_features=not getattr(args, 'skip_download', False),
+    )
 
 
 # ---------------------------------------------------------------------------
@@ -22,18 +60,73 @@ def configure_argparser_dataset(parser: argparse.ArgumentParser) -> argparse.Arg
         required=True,
         help='Key passed to Dataset.load().',
     )
+    parser.add_argument(
+        '--season_start',
+        type=str,
+        default='10-01',
+        help="Default season start date as 'MM-DD' (default: '10-01').",
+    )
+    parser.add_argument(
+        '--season_length',
+        type=int,
+        default=365,
+        help='Default season length in days (default: 365).',
+    )
+    parser.add_argument(
+        '--feature_keys',
+        type=str,
+        nargs='+',
+        default=None,
+        help=(
+            'Weather variable names to load '
+            '(default: temperature_2m_mean daylight_duration).'
+        ),
+    )
+    parser.add_argument(
+        '--skip_download',
+        action='store_true',
+        default=False,
+        help='Skip downloading missing feature data (assumes all data is already present).',
+    )
     return parser
 
 
-def init_dataset_from_args(args: argparse.Namespace, calendar=None, feature_providers=None) -> Dataset:
-    """Load a dataset by name.
+def init_dataset_from_args(
+    args: argparse.Namespace,
+    calendar=None,
+    feature_providers=None,
+) -> Dataset:
+    """Load and configure a dataset from parsed arguments.
+
+    Builds a :class:`~pysephone.dataset.util.calendar.Calendar` and an
+    :class:`~pysephone.dataset.util.openmeteo.OpenMeteoFeatures` provider from
+    the dataset args unless *calendar* / *feature_providers* are supplied
+    explicitly.
 
     Args:
-        args:              Parsed namespace (must include ``dataset_name``).
-        calendar:          Optional calendar to attach.
-        feature_providers: Optional list of feature providers to attach.
+        args:              Parsed namespace.
+        calendar:          Override calendar; skips auto-construction if given.
+        feature_providers: Override feature providers; skips auto-construction if given.
     """
-    return Dataset.load(args.dataset_name, calendar=calendar, feature_providers=feature_providers)
+    dataset_args = dataset_args_from_namespace(args)
+
+    if calendar is None and feature_providers is None:
+        from pysephone.dataset.util.calendar import Calendar
+        from pysephone.dataset.util.openmeteo import OpenMeteoFeatures
+
+        calendar = Calendar(
+            default_start=dataset_args.season_start,
+            default_length=dataset_args.season_length,
+        )
+        feature_providers = [OpenMeteoFeatures(
+            calendar=calendar,
+            data_keys=dataset_args.feature_keys,
+        )]
+
+    dataset = Dataset.load(args.dataset_name, calendar=calendar, feature_providers=feature_providers)
+    if dataset_args.download_features:
+        dataset.download_features(verbose=getattr(args, 'verbose', False))
+    return dataset
 
 
 # ---------------------------------------------------------------------------

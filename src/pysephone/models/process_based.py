@@ -74,6 +74,9 @@ class BasePBModel(BaseModel):
                            step.  Default: ``0.1``.
         opt_max_steps:     Maximum NLopt function evaluations per phase.
                            Defaults to ``10 * 2 ** n_opt_params``.
+        opt_max_time:      Maximum wall-clock seconds allowed per optimisation
+                           phase.  ``None`` means no time limit.  Either limit
+                           can stop the optimiser first.
     """
 
     def __init__(
@@ -84,6 +87,7 @@ class BasePBModel(BaseModel):
         opt_bounds_upper: Optional[Dict[str, float]] = None,
         opt_margin: float = 0.1,
         opt_max_steps: Optional[int] = None,
+        opt_max_time: Optional[float] = None,
     ) -> None:
         if params_keys_opt is not None:
             unknown = [k for k in params_keys_opt if k not in params]
@@ -113,6 +117,7 @@ class BasePBModel(BaseModel):
         if opt_max_steps is None:
             opt_max_steps = 10 * (2 ** len(self._param_keys_opt))
         self._opt_max_steps = opt_max_steps
+        self._opt_max_time = opt_max_time
 
     # ------------------------------------------------------------------
     # Properties
@@ -208,28 +213,31 @@ class BasePBModel(BaseModel):
             season_start = np.datetime64(sample['season_start'], 'D')
             return int((target_dt - season_start) / np.timedelta64(1, 'D'))
 
+        # Pre-collect once so the optimizer does not re-traverse the dataset
+        # or re-copy cached feature arrays on every objective call.
+        all_samples = list(dataset.iter_items())
+        all_true_ixs = [float(_true_ix(s)) for s in all_samples]
+
         def f_objective(x, grad):
             model._set_model_params_opt(x)
-            ys_pred: List[float] = []
-            ys_true: List[float] = []
-            for sample in dataset.iter_items():
-                try:
-                    _, info = model.predict(sample)
-                    ys_pred.append(float(info['ix']))
-                    ys_true.append(float(_true_ix(sample)))
-                except Exception:
-                    pass
+            ys_pred, ys_true = model._predict_ixs_batch(all_samples, all_true_ixs)
             if not ys_pred:
                 return float('inf')
             err = np.array(ys_true) - np.array(ys_pred)
             return float(np.mean(err ** 2))
+
+        def _configure(opt: nlopt.opt) -> nlopt.opt:
+            opt.set_maxeval(model._opt_max_steps)
+            if model._opt_max_time is not None:
+                opt.set_maxtime(model._opt_max_time)
+            return opt
 
         # Phase 1: global search
         opt = nlopt.opt(nlopt.GN_DIRECT, model.num_params_opt)
         opt.set_min_objective(f_objective)
         opt.set_lower_bounds(model._get_opt_bound_lower())
         opt.set_upper_bounds(model._get_opt_bound_upper())
-        opt.set_maxeval(model._opt_max_steps)
+        _configure(opt)
         try:
             xopt = opt.optimize(model._get_opt_init())
         except Exception as exc:
@@ -241,7 +249,7 @@ class BasePBModel(BaseModel):
         lb, ub = model._get_opt_margin_bounds(xopt)
         opt.set_lower_bounds(lb)
         opt.set_upper_bounds(ub)
-        opt.set_maxeval(model._opt_max_steps)
+        _configure(opt)
         try:
             xopt = opt.optimize(xopt)
         except Exception as exc:
@@ -249,6 +257,31 @@ class BasePBModel(BaseModel):
 
         model._set_model_params_opt(xopt)
         return model, {}
+
+    # ------------------------------------------------------------------
+    # Batch prediction (used internally by fit)
+    # ------------------------------------------------------------------
+
+    def _predict_ixs_batch(
+        self,
+        samples: List[Dict[str, Any]],
+        true_ixs: List[float],
+    ) -> Tuple[List[float], List[float]]:
+        """Return ``(pred_ixs, valid_true_ixs)``, skipping failed predictions.
+
+        The default implementation loops over :meth:`predict`.  Subclasses may
+        override with a vectorised implementation for a significant speed-up.
+        """
+        pred_ixs: List[float] = []
+        valid_true_ixs: List[float] = []
+        for sample, true_ix in zip(samples, true_ixs):
+            try:
+                _, info = self.predict(sample)
+                pred_ixs.append(float(info['ix']))
+                valid_true_ixs.append(true_ix)
+            except Exception:
+                pass
+        return pred_ixs, valid_true_ixs
 
     # ------------------------------------------------------------------
     # Parameter helpers (used internally by fit)

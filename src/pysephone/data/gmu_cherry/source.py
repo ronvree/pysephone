@@ -29,7 +29,7 @@ class GMUCherrySource(ObservationSource):
     Supported cfg keys: none.
     """
 
-    KEY = 'gmu_cherry'
+    KEY = 'GMU_cherry'
 
     def _get_data(self, cfg: Mapping[str, Any], root: Path) -> ObservationData:
         df = pd.concat([

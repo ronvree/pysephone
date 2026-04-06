@@ -157,6 +157,38 @@ class OpenMeteoFeatures(FeatureProvider):
         )
 
     # ------------------------------------------------------------------
+    # Preloading
+    # ------------------------------------------------------------------
+
+    def preload(self, observations_or_dataset, verbose: bool = True) -> None:
+        """Load all feature data into memory and close the backing store.
+
+        After this call every variable for every entry is held in
+        ``self._cache`` and the HDF5 store is closed, so multiple
+        DataLoader workers can call :meth:`get_data` concurrently without
+        hitting store-lock contention.
+
+        Args:
+            observations_or_dataset: An :class:`~pysephone.dataset.observations.Observations`
+                                     or :class:`~pysephone.dataset.dataset.Dataset` instance —
+                                     anything that exposes ``iter_index()``.
+            verbose: Show a tqdm progress bar.
+        """
+        if self._debug_mode:
+            return
+
+        indices = list(observations_or_dataset.iter_index())
+        it = tqdm(indices, desc='Preloading features') if verbose else indices
+
+        for index in it:
+            for key in self._data_keys:
+                self._get_variable(self._step, key, index)
+
+        if self._store is not None:
+            self._store.close()
+            self._store = None
+
+    # ------------------------------------------------------------------
     # Cache management
     # ------------------------------------------------------------------
 
@@ -230,6 +262,12 @@ class OpenMeteoFeatures(FeatureProvider):
         return np.zeros(n)
 
     def _load_from_store(self, step: str, key: str, index: Tuple) -> np.ndarray:
+        if self._store is None:
+            raise RuntimeError(
+                f"Cannot load '{key}' — the OpenMeteo store is closed. "
+                "Call preload() before closing the store, or do not call close() "
+                "until you are done reading data."
+            )
         src, loc_id, year, species_id, subgroup_id = index
 
         # Need the un-adjusted season_start to determine which calendar years to load

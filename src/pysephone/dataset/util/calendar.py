@@ -34,16 +34,23 @@ class Calendar:
     _DEFAULT_START = '10-01'
     _DEFAULT_LENGTH = 365
 
-    def __init__(self, calendar: Optional[Dict] = None) -> None:
+    def __init__(
+        self,
+        default_start: str = _DEFAULT_START,
+        default_length: int = _DEFAULT_LENGTH,
+        calendar: Optional[Dict] = None,
+    ) -> None:
         """
         Args:
-            calendar: Pre-populated dict mapping (src, species_id, subgroup_id)
-                      to (start_date: str, length: int).
-                      Defaults to a ``defaultdict`` using the class defaults.
+            default_start:  Default season start as ``'MM-DD'`` string, used for
+                            any species not explicitly registered (default: ``'10-01'``).
+            default_length: Default season length in days (default: ``365``).
+            calendar:       Pre-populated dict mapping (src, species_id, subgroup_id)
+                            to (start_date: str, length: int).  Overrides both defaults.
         """
-        self._calendar = calendar or defaultdict(
-            lambda: (self._DEFAULT_START, self._DEFAULT_LENGTH)
-        )
+        _start = default_start
+        _length = default_length
+        self._calendar = calendar or defaultdict(lambda: (_start, _length))
 
     # ------------------------------------------------------------------
     # Season registration

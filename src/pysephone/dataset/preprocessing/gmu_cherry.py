@@ -19,7 +19,7 @@ from pysephone.data.gmu_cherry.bloom_doy import get_df_japan, get_df_switzerland
 from pysephone.data.gmu_cherry.regions_data import LOCATION_VARIETY_JAPAN
 from pysephone.dataset.util.func import filter_outliers
 
-_SRC = 'gmu_cherry'
+_SRC = 'GMU_cherry'
 
 
 def get_gmu_cherry_dataset_japan(remove_outliers: bool = True,

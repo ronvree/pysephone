@@ -347,6 +347,27 @@ class Dataset:
                 self._obs, download_mode=download_mode, verbose=verbose
             )
 
+    def preload_features(self, verbose: bool = True) -> None:
+        """Preload all feature data into memory and close any backing stores.
+
+        Calls ``provider.preload(observations, ...)`` on each attached provider
+        that implements a ``preload`` method.  After this call, data is served
+        entirely from in-memory caches, so multiple DataLoader workers can run
+        concurrently without store-lock contention.
+
+        Typical usage::
+
+            ds.download_features()
+            ds.preload_features()   # close store, keep data in RAM
+            # safe to use with num_workers > 0
+
+        Args:
+            verbose: Show a tqdm progress bar per provider.
+        """
+        for provider in self._providers:
+            if hasattr(provider, 'preload'):
+                provider.preload(self._obs, verbose=verbose)
+
     def cache_data(self, verbose: bool = True, desc: Optional[str] = None) -> None:
         """Pre-warm the feature cache by iterating over all entries.
 

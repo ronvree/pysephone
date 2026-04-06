@@ -1,3 +1,6 @@
+# Cache
+.cache.sqlite
+
 # Credentials
 **/credentials.txt
 **/openmeteo_api_key.txt

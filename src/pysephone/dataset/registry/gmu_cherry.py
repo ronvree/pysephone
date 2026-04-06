@@ -21,7 +21,7 @@ from pysephone.dataset.preprocessing.gmu_cherry import (
     get_gmu_cherry_dataset_south_korea,
 )
 
-_GMU_SRC = 'gmu_cherry'
+_GMU_SRC = 'GMU_cherry'
 
 # ---------------------------------------------------------------------------
 # Shared configuration blocks
