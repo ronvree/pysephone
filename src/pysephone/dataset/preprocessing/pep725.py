@@ -82,7 +82,17 @@ def get_pep725_dataframes(data: ObservationData,
     if not datetime_observations:
         df_y[KEY_OBSERVATIONS] = df_y[KEY_OBSERVATIONS].dt.dayofyear
 
-    return {'data': df_y, 'locations': df_y_loc}
+    # Extract scientific names for all species present in the filtered data
+    present_species_ids = set(df_y.index.get_level_values(KEY_SPECIES_ID).unique())
+    species_names: dict = {}
+    if hasattr(data, 'species') and data.species is not None:
+        for (src, species_id), row in data.species.iterrows():
+            if species_id in present_species_ids:
+                name = row.get('species_name') or row.get('species')
+                if name and isinstance(name, str) and name.strip():
+                    species_names[(src, species_id)] = name.strip()
+
+    return {'data': df_y, 'locations': df_y_loc, 'species_names': species_names}
 
 
 def _filter_in_grid(df: pd.DataFrame, df_loc: pd.DataFrame, method: str = None) -> pd.DataFrame:

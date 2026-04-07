@@ -45,6 +45,7 @@ class Observations:
         locations_complete: Optional[List[Tuple[str, str]]] = None,
         species_complete: Optional[List[Tuple[str, int]]] = None,
         species_subgroups_complete: Optional[List[Tuple[str, int, int]]] = None,
+        species_names: Optional[Dict[Tuple[str, int], str]] = None,
     ) -> None:
         """
         Args:
@@ -58,6 +59,9 @@ class Observations:
             species_complete:           Full set of species from the original dataset.
             species_subgroups_complete: Full set of (species, subgroup) pairs from
                       the original dataset.
+            species_names:              Optional ``{(src, species_id): scientific_name}``
+                      mapping.  Used by :class:`~pysephone.dataset.util.phylogeny.PhylogenyFeatures`
+                      and any other provider that needs taxonomic names.
         """
         self._df_y = df_y
         self._df_y_loc = df_y_loc
@@ -78,6 +82,7 @@ class Observations:
             if species_subgroups_complete is not None
             else self.species_subgroups
         )
+        self._species_names: Dict[Tuple[str, int], str] = dict(species_names or {})
 
     # ------------------------------------------------------------------
     # Validation & index helpers
@@ -119,6 +124,7 @@ class Observations:
             locations_complete=self._locations_complete,
             species_complete=self._species_complete,
             species_subgroups_complete=self._species_subgroups_complete,
+            species_names=self._species_names,
         )
 
     # ------------------------------------------------------------------
@@ -232,6 +238,18 @@ class Observations:
     def species_subgroups_complete(self) -> List[Tuple[str, int, int]]:
         """(species, subgroup) pairs from the original dataset before any splits or selections."""
         return list(self._species_subgroups_complete)
+
+    @property
+    def species_names(self) -> Dict[Tuple[str, int], str]:
+        """Scientific name lookup: ``{(src, species_id): name}``.
+
+        Empty dict when the data source did not provide names.
+        """
+        return dict(self._species_names)
+
+    def get_species_name(self, src: str, species_id: int) -> Optional[str]:
+        """Return the scientific name for ``(src, species_id)``, or ``None``."""
+        return self._species_names.get((src, species_id))
 
     @property
     def years(self) -> List[int]:
@@ -479,7 +497,8 @@ class Observations:
         df_y = df_y[~df_y.index.duplicated(keep="first")]
         df_y_loc = pd.concat([a._df_y_loc, b._df_y_loc])
         df_y_loc = df_y_loc[~df_y_loc.index.duplicated(keep="first")]
-        return Observations(df_y, df_y_loc)
+        merged_names = {**a._species_names, **b._species_names}
+        return Observations(df_y, df_y_loc, species_names=merged_names)
 
     @staticmethod
     def shift_year(

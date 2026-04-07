@@ -54,11 +54,23 @@ def _build_bm(species_subgroups, obs_types: list, target_obs: str) -> Observatio
         filter_on_years=_BM_YEARS,
         datetime_observations=True,
     )
-    obs = Observations(dfs['data'], dfs['locations'])
+    obs = Observations(dfs['data'], dfs['locations'], species_names=dfs.get('species_names'))
     if _BM_ASSERT_TARGET:
         obs = obs.select_by_observation_requirement(target_obs)
     if _BM_DO_AGG:
         obs = obs.aggregate_in_grid(method=_BM_AGG_METHOD)
+    return obs
+
+
+def _cpf_obs_from_dfs(dfs: dict, require: list, shift_year_key: str = None) -> Observations:
+    """Build a CPF Observations from get_pep725_dataframes output."""
+    df_y = dfs['data']
+    if shift_year_key:
+        df_y = Observations.shift_year(df_y, shift_year_key, 1)
+    obs = Observations(df_y, dfs['locations'], species_names=dfs.get('species_names'))
+    obs = obs.select_by_observation_requirement(require)
+    if _CPF_DO_AGG:
+        obs = obs.aggregate_in_grid(method=_CPF_AGG_METHOD)
     return obs
 
 
@@ -76,12 +88,7 @@ def build_test_dataset(**kwargs) -> Observations:
         filter_on_years=_CPF_YEARS,
         datetime_observations=True,
     )
-    df_y = Observations.shift_year(dfs['data'], 'BBCH_0', 1)  # sowing is in previous calendar year
-    obs = Observations(df_y, dfs['locations'])
-    obs = obs.select_by_observation_requirement(['BBCH_0', 'BBCH_51'])
-    if _CPF_DO_AGG:
-        obs = obs.aggregate_in_grid(method=_CPF_AGG_METHOD)
-    return obs
+    return _cpf_obs_from_dfs(dfs, ['BBCH_0', 'BBCH_51'], shift_year_key='BBCH_0')
 
 
 def build_cpf_winter_wheat(**kwargs) -> Observations:
@@ -94,12 +101,7 @@ def build_cpf_winter_wheat(**kwargs) -> Observations:
         filter_on_years=_CPF_YEARS,
         datetime_observations=True,
     )
-    df_y = Observations.shift_year(dfs['data'], 'BBCH_0', 1)  # sowing is in previous calendar year
-    obs = Observations(df_y, dfs['locations'])
-    obs = obs.select_by_observation_requirement(['BBCH_0', 'BBCH_51'])
-    if _CPF_DO_AGG:
-        obs = obs.aggregate_in_grid(method=_CPF_AGG_METHOD)
-    return obs
+    return _cpf_obs_from_dfs(dfs, ['BBCH_0', 'BBCH_51'], shift_year_key='BBCH_0')
 
 
 def build_cpf_winter_barley(**kwargs) -> Observations:
@@ -112,12 +114,7 @@ def build_cpf_winter_barley(**kwargs) -> Observations:
         filter_on_years=_CPF_YEARS,
         datetime_observations=True,
     )
-    df_y = Observations.shift_year(dfs['data'], 'BBCH_0', 1)  # sowing is in previous calendar year
-    obs = Observations(df_y, dfs['locations'])
-    obs = obs.select_by_observation_requirement(['BBCH_0', 'BBCH_51'])
-    if _CPF_DO_AGG:
-        obs = obs.aggregate_in_grid(method=_CPF_AGG_METHOD)
-    return obs
+    return _cpf_obs_from_dfs(dfs, ['BBCH_0', 'BBCH_51'], shift_year_key='BBCH_0')
 
 
 def build_cpf_winter_rye(**kwargs) -> Observations:
@@ -130,12 +127,7 @@ def build_cpf_winter_rye(**kwargs) -> Observations:
         filter_on_years=_CPF_YEARS,
         datetime_observations=True,
     )
-    df_y = Observations.shift_year(dfs['data'], 'BBCH_0', 1)  # sowing is in previous calendar year
-    obs = Observations(df_y, dfs['locations'])
-    obs = obs.select_by_observation_requirement(['BBCH_0', 'BBCH_61'])
-    if _CPF_DO_AGG:
-        obs = obs.aggregate_in_grid(method=_CPF_AGG_METHOD)
-    return obs
+    return _cpf_obs_from_dfs(dfs, ['BBCH_0', 'BBCH_61'], shift_year_key='BBCH_0')
 
 
 # ---------------------------------------------------------------------------
@@ -273,7 +265,7 @@ def build_cfm_zea_mays(**kwargs) -> Observations:
         filter_on_years=list(range(1980, 2025)),
         datetime_observations=True,
     )
-    obs = Observations(dfs['data'], dfs['locations'])
+    obs = Observations(dfs['data'], dfs['locations'], species_names=dfs.get('species_names'))
     obs = obs.select_by_observation_requirement(['BBCH_0', 'BBCH_51'])
     # No grid aggregation applied for this dataset
     return obs
