@@ -88,9 +88,17 @@ def get_pep725_dataframes(data: ObservationData,
     if hasattr(data, 'species') and data.species is not None:
         for (src, species_id), row in data.species.iterrows():
             if species_id in present_species_ids:
-                name = row.get('species_name') or row.get('species')
+                # Prefer the scientific name ('species') over the common name ('species_name')
+                # so that OpenTree TNRS can resolve the taxon.
+                # PEP725 stores scientific names in title-case (e.g. "Malus X Domestica");
+                # lowercase the epithet(s) to produce standard binomial form.
+                name = row.get('species') or row.get('species_name')
                 if name and isinstance(name, str) and name.strip():
-                    species_names[(src, species_id)] = name.strip()
+                    parts = name.strip().split()
+                    if len(parts) >= 2:
+                        # Keep genus capitalised; lowercase everything else
+                        name = parts[0] + ' ' + ' '.join(p.lower() for p in parts[1:])
+                    species_names[(src, species_id)] = name
 
     return {'data': df_y, 'locations': df_y_loc, 'species_names': species_names}
 

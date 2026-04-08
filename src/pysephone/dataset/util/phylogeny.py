@@ -167,7 +167,7 @@ class PhylogenyFeatures(FeatureProvider):
             raise ImportError("requests is required for PhylogenyFeatures (pip install requests)")
 
         url = 'https://api.opentreeoflife.org/v3/tnrs/match_names'
-        payload = {'names': names, 'do_approximate_matching': False}
+        payload = {'names': names, 'do_approximate_matching': True}
         response = requests.post(url, json=payload, timeout=30)
         response.raise_for_status()
         data = response.json()
