@@ -430,6 +430,12 @@ class Dataset:
         Each entry is a callable that accepts ``**kwargs`` and returns an
         :class:`Observations` object.
 
+        When a *calendar* is provided the registry's
+        :data:`~pysephone.dataset.registry.CALENDAR_CONFIGS` entry (if any)
+        is called to set species-specific season windows on the calendar
+        before the Dataset is constructed.  You can override individual
+        species afterwards with :meth:`Calendar.set_season`.
+
         Args:
             key:               Name of the dataset (e.g. ``'CPF_PEP725_winter_wheat'``).
             calendar:          Optional :class:`~pysephone.dataset.util.calendar.Calendar`
@@ -440,7 +446,7 @@ class Dataset:
         Raises:
             DatasetException: If *key* is not found in the registry.
         """
-        from pysephone.dataset.registry import REGISTRY
+        from pysephone.dataset.registry import REGISTRY, CALENDAR_CONFIGS
 
         if key not in REGISTRY:
             available = sorted(REGISTRY)
@@ -449,6 +455,10 @@ class Dataset:
             )
 
         obs = REGISTRY[key](**kwargs)
+
+        if calendar is not None and key in CALENDAR_CONFIGS:
+            CALENDAR_CONFIGS[key](calendar)
+
         return Dataset(obs, calendar=calendar, feature_providers=feature_providers)
 
     @staticmethod

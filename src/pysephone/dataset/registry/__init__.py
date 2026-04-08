@@ -4,6 +4,11 @@ Dataset registry.
 Maps dataset names to builder callables that each return an Observations object.
 Add a new module here and merge its DATASETS dict into REGISTRY to register
 additional dataset families.
+
+``CALENDAR_CONFIGS`` maps dataset names to callables that configure a
+:class:`~pysephone.dataset.util.calendar.Calendar` with sensible season
+windows for the species in that dataset.  :meth:`Dataset.load` calls the
+matching config automatically when a Calendar is provided.
 """
 
 from functools import reduce
@@ -16,6 +21,11 @@ REGISTRY = {
     **pep725.DATASETS,
     **gmu_cherry.DATASETS,
     # 'all_fruit_trees' needs both families so it is wired up after both are imported
+}
+
+CALENDAR_CONFIGS = {
+    **pep725.CALENDAR_CONFIGS,
+    **gmu_cherry.CALENDAR_CONFIGS,
 }
 
 # Wire up cross-family composites now that both registries are available.
