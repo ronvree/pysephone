@@ -461,10 +461,6 @@ class PhylogenyFeatures(FeatureProvider):
         lam = np.maximum(eigvals[:k_actual], 0.0)
         coords = eigvecs[:, :k_actual] * np.sqrt(lam)
 
-        # Pad with zeros if fewer than k eigenvalues are available
-        if k_actual < k:
-            coords = np.hstack([coords, np.zeros((N, k - k_actual))])
-
         return coords.astype(np.float32)
 
     # ------------------------------------------------------------------
