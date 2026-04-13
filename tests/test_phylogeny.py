@@ -129,11 +129,10 @@ class TestClassicalMDS:
         coords = PhylogenyFeatures._classical_mds(_EXPECTED_DIST_3, k=2)
         assert coords.dtype == np.float32
 
-    def test_k_larger_than_n_minus_1_padded(self):
-        # k=5 but only 3 species → last 2 columns must be zero
+    def test_k_larger_than_n_minus_1_capped(self):
+        # k=5 but only 3 species → capped at n-1=2 meaningful dims
         coords = PhylogenyFeatures._classical_mds(_EXPECTED_DIST_3, k=5)
-        assert coords.shape == (3, 5)
-        np.testing.assert_allclose(coords[:, 3:], 0.0)
+        assert coords.shape == (3, 2)
 
     def test_zero_distance_matrix(self):
         # All species identical → MDS should return zeros

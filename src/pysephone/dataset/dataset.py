@@ -326,10 +326,13 @@ class Dataset:
     def download_features(
         self, download_mode: str = None, verbose: bool = True
     ) -> None:
-        """Download data for all attached providers that support downloading.
+        """Download data for all attached providers and preload into memory.
 
         Calls ``provider.download(observations, ...)`` on each provider that
-        implements a ``download`` method.
+        implements a ``download`` method, then immediately preloads all feature
+        data into RAM and closes the HDF5 store.  After this call the dataset
+        is fully self-contained in memory, so multiple notebooks or processes
+        can run concurrently without file-lock contention.
 
         Args:
             download_mode: Forwarded to each provider's ``download()`` call.
@@ -346,6 +349,7 @@ class Dataset:
             provider.download(
                 self._obs, download_mode=download_mode, verbose=verbose
             )
+        self.preload_features(verbose=verbose)
 
     def preload_features(self, verbose: bool = True) -> None:
         """Preload all feature data into memory and close any backing stores.

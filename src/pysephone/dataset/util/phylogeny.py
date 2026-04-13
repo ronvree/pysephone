@@ -167,7 +167,7 @@ class PhylogenyFeatures(FeatureProvider):
             raise ImportError("requests is required for PhylogenyFeatures (pip install requests)")
 
         url = 'https://api.opentreeoflife.org/v3/tnrs/match_names'
-        payload = {'names': names, 'do_approximate_matching': False}
+        payload = {'names': names, 'do_approximate_matching': True}
         response = requests.post(url, json=payload, timeout=30)
         response.raise_for_status()
         data = response.json()
@@ -460,10 +460,6 @@ class PhylogenyFeatures(FeatureProvider):
         k_actual = min(k, N - 1)
         lam = np.maximum(eigvals[:k_actual], 0.0)
         coords = eigvecs[:, :k_actual] * np.sqrt(lam)
-
-        # Pad with zeros if fewer than k eigenvalues are available
-        if k_actual < k:
-            coords = np.hstack([coords, np.zeros((N, k - k_actual))])
 
         return coords.astype(np.float32)
 
