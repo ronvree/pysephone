@@ -27,6 +27,7 @@ dependencies = [
     "nlopt",
     "geopandas",
     "shapely",
+    "h5py",
 ]
 
 [tool.setuptools.packages.find]
