@@ -351,6 +351,28 @@ def build_pep725_fruit_trees_5(**kwargs) -> Observations:
 
 
 # ---------------------------------------------------------------------------
+# Calendar configuration: per-dataset season window defaults
+# ---------------------------------------------------------------------------
+
+def _pep725_configure_calendar_winter_wheat(calendar):
+    calendar.set_season(_SRC, species_id=333, start_date='09-01', length=365, subgroup_id=300)
+
+def _pep725_configure_calendar_winter_barley(calendar):
+    calendar.set_season(_SRC, species_id=330, start_date='09-01', length=365, subgroup_id=300)
+
+def _pep725_configure_calendar_winter_rye(calendar):
+    calendar.set_season(_SRC, species_id=332, start_date='09-01', length=365, subgroup_id=300)
+
+
+CALENDAR_CONFIGS = {
+    'test_dataset':             _pep725_configure_calendar_winter_wheat,
+    'CPF_PEP725_winter_wheat':  _pep725_configure_calendar_winter_wheat,
+    'CPF_PEP725_winter_barley': _pep725_configure_calendar_winter_barley,
+    'CPF_PEP725_winter_rye':    _pep725_configure_calendar_winter_rye,
+}
+
+
+# ---------------------------------------------------------------------------
 # Registry mapping for PEP725 datasets
 # ---------------------------------------------------------------------------
 
