@@ -215,6 +215,45 @@ def build_pep725_cherry(**kwargs) -> Observations:
     return _build_bm(species_subgroups, ['BBCH_60', 'BBCH_65', 'BBCH_69', 'BBCH_87'], 'BBCH_60')
 
 
+def build_pep725_cherry_no_gmu(match_radius_km: float = 5.0, **kwargs) -> Observations:
+    """PEP725 Cherry (*Prunus avium*) with stations overlapping GMU Swiss
+    cherry removed.
+
+    Any PEP725 station whose nearest *GMU_Cherry_Switzerland* station is
+    within ``match_radius_km`` (default 5 km) is dropped, deduplicating the
+    same-tree overlap flagged by ``notebooks/gmu_pep725_cherry_overlap``.
+    Only GMU Switzerland is considered — GMU Japan / South Korea are
+    *P. yedoensis*, so no cross-species confusion is possible.
+    """
+    import numpy as np
+    from pysephone.dataset.registry.gmu_cherry import build_gmu_cherry_switzerland
+
+    pep_obs = build_pep725_cherry()
+    gmu_obs = build_gmu_cherry_switzerland()
+
+    gmu_locs = list(gmu_obs.locations)
+    pep_locs = list(pep_obs.locations)
+    if not gmu_locs or not pep_locs:
+        return pep_obs
+
+    gmu_lats = np.array([gmu_obs.get_location_coordinates(l)['lat'] for l in gmu_locs])
+    gmu_lons = np.array([gmu_obs.get_location_coordinates(l)['lon'] for l in gmu_locs])
+    pep_lats = np.array([pep_obs.get_location_coordinates(l)['lat'] for l in pep_locs])
+    pep_lons = np.array([pep_obs.get_location_coordinates(l)['lon'] for l in pep_locs])
+
+    R = 6371.0  # km
+    lat1 = np.radians(pep_lats)[:, None]
+    lat2 = np.radians(gmu_lats)[None, :]
+    dlat = lat2 - lat1
+    dlon = np.radians(gmu_lons[None, :] - pep_lons[:, None])
+    a = np.sin(dlat / 2) ** 2 + np.cos(lat1) * np.cos(lat2) * np.sin(dlon / 2) ** 2
+    dist_km = 2 * R * np.arcsin(np.sqrt(a))
+
+    keep_mask = dist_km.min(axis=1) > match_radius_km
+    kept = [loc for loc, k in zip(pep_locs, keep_mask) if k]
+    return pep_obs.select_locations(kept)
+
+
 def build_pep725_apricot(**kwargs) -> Observations:
     # Prunus Armeniaca — species 205
     species_subgroups = [
@@ -391,7 +430,8 @@ DATASETS = {
     'PEP725_Peach':      build_pep725_peach,
     'PEP725_Almond':     build_pep725_almond,
     'PEP725_Hazel':      build_pep725_hazel,
-    'PEP725_Cherry':     build_pep725_cherry,
+    'PEP725_Cherry':        build_pep725_cherry,
+    'PEP725_Cherry_NoGMU':  build_pep725_cherry_no_gmu,
     'PEP725_Apricot':    build_pep725_apricot,
     'PEP725_Plum':       build_pep725_plum,
     'PEP725_Blackthorn': build_pep725_blackthorn,

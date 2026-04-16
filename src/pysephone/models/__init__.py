@@ -11,6 +11,12 @@ from pysephone.models.cf import (
     DynamicGDDModel, DynamicGDDModelArgs,
 )
 from pysephone.models.lstm import LSTMModel, LSTMModelArgs
+from pysephone.models.lstm_ctx import (
+    LSTMCtxModel,
+    LSTMCtxModelArgs,
+    OneHotSpeciesLSTMModel,
+    PhylogeneticLSTMModel,
+)
 from pysephone.models.random_forest import RandomForestModel, RandomForestModelArgs
 from pysephone.models.hybrid import HybridModel, HybridModelArgs
 from pysephone.models.unimodal_hybrid import UnimodalHybridModel, UnimodalHybridModelArgs
