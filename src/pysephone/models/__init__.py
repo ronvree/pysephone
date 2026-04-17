@@ -21,3 +21,14 @@ from pysephone.models.random_forest import RandomForestModel, RandomForestModelA
 from pysephone.models.hybrid import HybridModel, HybridModelArgs
 from pysephone.models.unimodal_hybrid import UnimodalHybridModel, UnimodalHybridModelArgs
 from pysephone.models.wheat_hybrid import WheatHybridModel, WheatHybridModelArgs
+from pysephone.models.beta_gdd import (
+    BetaGDDModel,
+    BetaGDDModelArgs,
+    GlobalBetaGDDModel,
+    CtxBetaGDDModel,
+    CtxBetaGDDModelArgs,
+    OneHotSpeciesBetaGDDModel,
+    PhylogeneticBetaGDDModel,
+    AlphaEarthBetaGDDModel,
+    PhyloAlphaEarthBetaGDDModel,
+)

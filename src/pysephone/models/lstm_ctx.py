@@ -220,11 +220,12 @@ class PhylogeneticLSTMModel(LSTMCtxModel):
         self._species_index: Dict[SpeciesKey, int] = {
             (str(s), int(sid)): i for i, (s, sid) in enumerate(species_keys)
         }
-        # Buffer so .to(device) moves it
-        self.register_buffer(
-            '_mds_table',
-            torch.from_numpy(np.asarray(mds_coords, dtype=np.float32)),
-        )
+        coords = np.asarray(mds_coords, dtype=np.float32)
+        mean = coords.mean(axis=0)
+        std  = coords.std(axis=0).clip(min=1e-8)
+        self.register_buffer('_mds_table', torch.from_numpy((coords - mean) / std))
+        self.register_buffer('_mds_mean',  torch.from_numpy(mean))
+        self.register_buffer('_mds_std',   torch.from_numpy(std))
 
     @classmethod
     def from_phylogeny_features(
