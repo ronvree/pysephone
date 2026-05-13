@@ -28,6 +28,13 @@ dependencies = [
     "geopandas",
     "shapely",
     "h5py",
+    "rasterio",
+]
+
+[project.optional-dependencies]
+stats = [
+    "scikit-posthocs",
+    "autorank",
 ]
 
 [tool.setuptools.packages.find]
