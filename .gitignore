@@ -30,3 +30,6 @@ CLAUDE.md
 
 # Jupyter
 .ipynb_checkpoints/
+
+# Local scratch scripts (underscore-prefixed)
+scripts/_*
