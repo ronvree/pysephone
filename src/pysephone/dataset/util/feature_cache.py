@@ -195,7 +195,7 @@ class FeatureCache(FeatureProvider):
         if path is not None:
             cache.save(path)
             if verbose:
-                print(f"Feature cache saved → {path}")
+                print(f"Feature cache saved -> {path}")
 
         return cache
 
