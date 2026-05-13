@@ -54,6 +54,9 @@ def get_models_dir(root: Path) -> Path:
 def get_evaluations_dir(root: Path) -> Path:
     return root / "outputs" / "evaluations"
 
+def get_comparisons_dir(root: Path) -> Path:
+    return root / "outputs" / "comparisons"
+
 def get_datasets_dir(root: Path) -> Path:
     return root / "datasets"
 
