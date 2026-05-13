@@ -32,3 +32,13 @@ from pysephone.models.beta_gdd import (
     AlphaEarthBetaGDDModel,
     PhyloAlphaEarthBetaGDDModel,
 )
+from pysephone.models.bspline_gdd import (
+    BSplineGDDModelArgs,
+    GlobalBSplineGDDModel,
+    CtxBSplineGDDModel,
+    CtxBSplineGDDModelArgs,
+    OneHotSpeciesBSplineGDDModel,
+    OneHotLocationBSplineGDDModel,
+    PhylogeneticBSplineGDDModel,
+    AlphaEarthBSplineGDDModel,
+)
