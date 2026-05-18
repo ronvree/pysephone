@@ -13,19 +13,21 @@ matching config automatically when a Calendar is provided.
 
 from functools import reduce
 
-from pysephone.dataset.registry import gmu_cherry, pep725
+from pysephone.dataset.registry import gmu_cherry, pep725, usa_npn
 
 # Merge all per-family registries into a single lookup table.
 # Import order determines priority when names clash (last writer wins).
 REGISTRY = {
     **pep725.DATASETS,
     **gmu_cherry.DATASETS,
+    **usa_npn.DATASETS,
     # 'all_fruit_trees' needs both families so it is wired up after both are imported
 }
 
 CALENDAR_CONFIGS = {
     **pep725.CALENDAR_CONFIGS,
     **gmu_cherry.CALENDAR_CONFIGS,
+    **usa_npn.CALENDAR_CONFIGS,
 }
 
 # Wire up cross-family composites now that both registries are available.
