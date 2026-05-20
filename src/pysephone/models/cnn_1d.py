@@ -1,27 +1,35 @@
 """
-LSTM-based phenology model.
+1D-CNN phenology model.
 
-Processes a full season of daily meteorological features through a stacked LSTM
-and a pointwise linear head to produce a per-day probability curve.  The
-predicted event day is the day with the largest increase in probability (i.e.
-the argmax of the first difference).
+Convolutional counterpart to :class:`pysephone.models.lstm.LSTMModel`.  A full
+season of daily meteorological features is encoded by a stack of *causal* 1-D
+convolutions and projected through a pointwise linear head to a per-day
+sigmoid probability curve.  The predicted event day is the day with the
+largest increase in probability (i.e. the argmax of the first difference).
 
-Training uses binary cross-entropy against a soft step-function label: 0 before
-the observed event day, 1 from that day onwards.  This is better suited to
-phenology than MSE on day indices because it treats "too early" and "too late"
-symmetrically and is differentiable through the full sequence.
+Causal padding keeps the same left-to-right semantics as the LSTM: the
+probability at day ``t`` depends only on inputs at days ``<= t``.  This is
+what makes the soft step-function BCE label and the first-difference
+prediction rule meaningful — a non-causal encoder would let day ``t`` peek
+at the future, which would distort the interpretation of the probability
+curve.
+
+Training uses binary cross-entropy against a soft step-function label: 0
+before the observed event day, 1 from that day onwards (identical to the
+LSTM model's training target).
 
 Example::
 
-    from pysephone.models.lstm import LSTMModel
+    from pysephone.models.cnn_1d import CNN1DModel
 
-    model, info = LSTMModel.fit(
+    model, info = CNN1DModel.fit(
         target_fn=lambda s: s['observations']['BBCH_60'],
         dataset=ds_train,
         model_kwargs=dict(
             data_keys=['temperature_2m_mean'],
             hidden_size=64,
-            num_layers=2,
+            num_layers=4,
+            kernel_size=7,
         ),
         num_epochs=50,
         batch_size=32,
@@ -41,21 +49,23 @@ import torch.nn.functional as F
 
 from pysephone.constants import KEY_FEATURES, KEY_OBSERVATIONS_INDEX
 from pysephone.models.torch_base import BaseTorchModel, BaseTorchModelArgs
+from pysephone.models.util.causal_cnn import CausalConv1d
 from pysephone.models.util.pointwise_head import PointwiseHead
 from pysephone.utils.func_torch import create_left_mask
 
 
 @dataclass
-class LSTMModelArgs(BaseTorchModelArgs):
-    """Arguments for :class:`LSTMModel`.
+class CNN1DModelArgs(BaseTorchModelArgs):
+    """Arguments for :class:`CNN1DModel`.
 
     Attributes:
         data_keys:           Weather variable names to use as input features.
-        hidden_size:         LSTM hidden state size.
-        num_layers:          Number of stacked LSTM layers.
-        num_layers_lin:      Depth of the pointwise linear head (≥ 1).
+        hidden_size:         Channel count of each causal conv layer.
+        num_layers:          Number of stacked causal conv layers.
+        kernel_size:         Kernel size of each causal conv layer.
+        num_layers_lin:      Depth of the pointwise linear head (>= 1).
         feature_statistics:  Optional ``{key: (mean, std)}`` dict for input
-                             normalisation.  ``None`` → use
+                             normalisation.  ``None`` -> use
                              :meth:`~BaseTorchModel.get_default_norm_params`.
         obs_features:        Optional list of observation-index keys whose
                              within-season index is encoded as a binary mask
@@ -63,32 +73,37 @@ class LSTMModelArgs(BaseTorchModelArgs):
     """
     data_keys: List[str] = field(default_factory=lambda: ['temperature_2m_mean'])
     hidden_size: int = 64
-    num_layers: int = 2
+    num_layers: int = 4
+    kernel_size: int = 7
     num_layers_lin: int = 2
     feature_statistics: Optional[Dict[str, Tuple[float, float]]] = None
     obs_features: Optional[List[str]] = None
 
 
-class LSTMModel(BaseTorchModel):
-    """LSTM phenology model.
+class CNN1DModel(BaseTorchModel):
+    """1D-CNN phenology model (causal, undilated).
 
     Architecture:
 
     * **Input**: per-day meteorological features (plus optional binary mask
       features for observed prior events), normalised with *feature_statistics*.
-    * **Encoder**: stacked LSTM (``num_layers`` layers, ``hidden_size`` units).
-    * **Head**: pointwise 1-D convolution stack (``num_layers_lin`` layers)
-      mapping hidden states to a single sigmoid probability per day.
+    * **Encoder**: stack of ``num_layers`` causal 1-D convolutions
+      (``kernel_size``-wide, ``hidden_size`` channels, dilation 1) with ReLU
+      activations between layers.  Causal padding ensures the activation at
+      day ``t`` depends only on inputs at days ``<= t``.
+    * **Head**: pointwise linear stack (``num_layers_lin`` 1x1 convs) mapping
+      channel activations to a single sigmoid probability per day.
     * **Prediction**: day with the largest first-difference in the probability
       curve (argmax of ``p[t] - p[t-1]``).
 
     Args:
         data_keys:          Feature keys from ``sample['features']``.
-        hidden_size:        LSTM hidden-state dimensionality.
-        num_layers:         Number of stacked LSTM layers.
-        num_layers_lin:     Depth of the pointwise linear head (≥ 1).
+        hidden_size:        Channel count of each causal conv layer.
+        num_layers:         Number of stacked causal conv layers.
+        kernel_size:        Kernel size of each causal conv layer.
+        num_layers_lin:     Depth of the pointwise linear head (>= 1).
         feature_statistics: ``{key: (mean, std)}`` for input normalisation.
-                            ``None`` → use
+                            ``None`` -> use
                             :meth:`~BaseTorchModel.get_default_norm_params`.
         obs_features:       List of observation-index keys to include as binary
                             mask features.  Each adds one channel to the input.
@@ -98,13 +113,15 @@ class LSTMModel(BaseTorchModel):
         self,
         data_keys: List[str],
         hidden_size: int = 64,
-        num_layers: int = 2,
+        num_layers: int = 4,
+        kernel_size: int = 7,
         num_layers_lin: int = 2,
         feature_statistics: Optional[Dict[str, Tuple[float, float]]] = None,
         obs_features: Optional[List[str]] = None,
     ) -> None:
         assert hidden_size > 0
         assert num_layers > 0
+        assert kernel_size > 0
         assert num_layers_lin > 0
 
         super().__init__()
@@ -120,12 +137,13 @@ class LSTMModel(BaseTorchModel):
             0 if obs_features is None else len(obs_features)
         )
 
-        self._rnn = nn.LSTM(
-            input_size=num_input_features,
-            hidden_size=hidden_size,
-            batch_first=True,
-            num_layers=num_layers,
-        )
+        layers: List[nn.Module] = []
+        in_c = num_input_features
+        for _ in range(num_layers):
+            layers.append(CausalConv1d(in_c, hidden_size, kernel_size, dilation=1))
+            layers.append(nn.ReLU())
+            in_c = hidden_size
+        self._encoder = nn.Sequential(*layers)
 
         self._lin = PointwiseHead(
             num_layers=num_layers_lin,
@@ -171,12 +189,11 @@ class LSTMModel(BaseTorchModel):
         x = torch.cat([f.unsqueeze(-1) for f in fs], dim=-1)
         x = torch.nan_to_num(x)
 
-        # LSTM encoder → (B, T, hidden_size)
-        x, _ = self._rnn(x)
-        x = F.relu(x)
-
-        # Pointwise head: (B, hidden_size, T) → (B, 1, T) → (B, T)
+        # Causal conv encoder expects channels-first: (B, num_features, T) -> (B, hidden_size, T)
         x = x.permute(0, 2, 1)
+        x = self._encoder(x)
+
+        # Pointwise head: (B, hidden_size, T) -> (B, 1, T) -> (B, T)
         ps = torch.sigmoid(self._lin(x)).squeeze(1)
 
         # Predicted day: argmax of first difference
@@ -186,7 +203,7 @@ class LSTMModel(BaseTorchModel):
         return ixs.float(), {'ps': ps}
 
     # ------------------------------------------------------------------
-    # Loss — BCE with soft step-function labels
+    # Loss - BCE with soft step-function labels
     # ------------------------------------------------------------------
 
     def loss(

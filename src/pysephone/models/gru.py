@@ -1,21 +1,21 @@
 """
-LSTM-based phenology model.
+GRU-based phenology model.
 
-Processes a full season of daily meteorological features through a stacked LSTM
+GRU counterpart to :class:`pysephone.models.lstm.LSTMModel`.  The architecture
+and training contract are identical; only the recurrent cell type differs.
+A full season of daily meteorological features is processed by a stacked GRU
 and a pointwise linear head to produce a per-day probability curve.  The
-predicted event day is the day with the largest increase in probability (i.e.
-the argmax of the first difference).
+predicted event day is the day with the largest increase in probability
+(i.e. the argmax of the first difference).
 
 Training uses binary cross-entropy against a soft step-function label: 0 before
-the observed event day, 1 from that day onwards.  This is better suited to
-phenology than MSE on day indices because it treats "too early" and "too late"
-symmetrically and is differentiable through the full sequence.
+the observed event day, 1 from that day onwards.
 
 Example::
 
-    from pysephone.models.lstm import LSTMModel
+    from pysephone.models.gru import GRUModel
 
-    model, info = LSTMModel.fit(
+    model, info = GRUModel.fit(
         target_fn=lambda s: s['observations']['BBCH_60'],
         dataset=ds_train,
         model_kwargs=dict(
@@ -46,16 +46,16 @@ from pysephone.utils.func_torch import create_left_mask
 
 
 @dataclass
-class LSTMModelArgs(BaseTorchModelArgs):
-    """Arguments for :class:`LSTMModel`.
+class GRUModelArgs(BaseTorchModelArgs):
+    """Arguments for :class:`GRUModel`.
 
     Attributes:
         data_keys:           Weather variable names to use as input features.
-        hidden_size:         LSTM hidden state size.
-        num_layers:          Number of stacked LSTM layers.
-        num_layers_lin:      Depth of the pointwise linear head (≥ 1).
+        hidden_size:         GRU hidden state size.
+        num_layers:          Number of stacked GRU layers.
+        num_layers_lin:      Depth of the pointwise linear head (>= 1).
         feature_statistics:  Optional ``{key: (mean, std)}`` dict for input
-                             normalisation.  ``None`` → use
+                             normalisation.  ``None`` -> use
                              :meth:`~BaseTorchModel.get_default_norm_params`.
         obs_features:        Optional list of observation-index keys whose
                              within-season index is encoded as a binary mask
@@ -69,26 +69,26 @@ class LSTMModelArgs(BaseTorchModelArgs):
     obs_features: Optional[List[str]] = None
 
 
-class LSTMModel(BaseTorchModel):
-    """LSTM phenology model.
+class GRUModel(BaseTorchModel):
+    """GRU phenology model.
 
     Architecture:
 
     * **Input**: per-day meteorological features (plus optional binary mask
       features for observed prior events), normalised with *feature_statistics*.
-    * **Encoder**: stacked LSTM (``num_layers`` layers, ``hidden_size`` units).
-    * **Head**: pointwise 1-D convolution stack (``num_layers_lin`` layers)
-      mapping hidden states to a single sigmoid probability per day.
+    * **Encoder**: stacked GRU (``num_layers`` layers, ``hidden_size`` units).
+    * **Head**: pointwise linear stack (``num_layers_lin`` 1x1 convs) mapping
+      hidden states to a single sigmoid probability per day.
     * **Prediction**: day with the largest first-difference in the probability
       curve (argmax of ``p[t] - p[t-1]``).
 
     Args:
         data_keys:          Feature keys from ``sample['features']``.
-        hidden_size:        LSTM hidden-state dimensionality.
-        num_layers:         Number of stacked LSTM layers.
-        num_layers_lin:     Depth of the pointwise linear head (≥ 1).
+        hidden_size:        GRU hidden-state dimensionality.
+        num_layers:         Number of stacked GRU layers.
+        num_layers_lin:     Depth of the pointwise linear head (>= 1).
         feature_statistics: ``{key: (mean, std)}`` for input normalisation.
-                            ``None`` → use
+                            ``None`` -> use
                             :meth:`~BaseTorchModel.get_default_norm_params`.
         obs_features:       List of observation-index keys to include as binary
                             mask features.  Each adds one channel to the input.
@@ -120,7 +120,7 @@ class LSTMModel(BaseTorchModel):
             0 if obs_features is None else len(obs_features)
         )
 
-        self._rnn = nn.LSTM(
+        self._rnn = nn.GRU(
             input_size=num_input_features,
             hidden_size=hidden_size,
             batch_first=True,
@@ -171,11 +171,11 @@ class LSTMModel(BaseTorchModel):
         x = torch.cat([f.unsqueeze(-1) for f in fs], dim=-1)
         x = torch.nan_to_num(x)
 
-        # LSTM encoder → (B, T, hidden_size)
+        # GRU encoder -> (B, T, hidden_size)
         x, _ = self._rnn(x)
         x = F.relu(x)
 
-        # Pointwise head: (B, hidden_size, T) → (B, 1, T) → (B, T)
+        # Pointwise head: (B, hidden_size, T) -> (B, 1, T) -> (B, T)
         x = x.permute(0, 2, 1)
         ps = torch.sigmoid(self._lin(x)).squeeze(1)
 
@@ -186,7 +186,7 @@ class LSTMModel(BaseTorchModel):
         return ixs.float(), {'ps': ps}
 
     # ------------------------------------------------------------------
-    # Loss — BCE with soft step-function labels
+    # Loss - BCE with soft step-function labels
     # ------------------------------------------------------------------
 
     def loss(

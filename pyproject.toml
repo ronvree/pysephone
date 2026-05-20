@@ -22,6 +22,7 @@ dependencies = [
     "retry-requests",
     "numpy",
     "scikit-learn",
+    "xgboost",
     "matplotlib",
     "torch",
     "nlopt",
