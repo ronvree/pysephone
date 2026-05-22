@@ -39,15 +39,6 @@ from pysephone.models.util.flat_features import (
 )
 
 
-# ---------------------------------------------------------------------------
-# Pre-tuned hyperparameters per dataset (optional starting points)
-# ---------------------------------------------------------------------------
-
-_MAP_KWARGS: Dict[str, Dict[str, Any]] = {
-    'GMU_Cherry_Japan_YS': dict(n_estimators=300, max_depth=15, min_samples_split=4),
-    'PEP725':              dict(n_estimators=200, max_depth=12, min_samples_split=5),
-}
-
 _PARAM_DIST = {
     'n_estimators':     [100, 200, 300, 500],
     'max_depth':        [8, 10, 12, 15, 20, None],
@@ -71,8 +62,6 @@ class RandomForestModelArgs(ModelArgs):
         cv_folds:              Cross-validation folds used during search.
         random_state:          Seed for ``RandomForestRegressor`` and the
                                randomised search.
-        dataset_key:           Dataset name used to look up pre-tuned kwargs
-                               from the internal table.  ``None`` → ignored.
         data_keys:             Feature keys to include (order matters).
                                Defaults to ``['temperature_2m_mean',
                                'daylight_duration']``.
@@ -81,7 +70,6 @@ class RandomForestModelArgs(ModelArgs):
     n_iter_search: int = 20
     cv_folds: int = 5
     random_state: Optional[int] = 42
-    dataset_key: Optional[str] = None
     data_keys: List[str] = field(
         default_factory=lambda: ['temperature_2m_mean', 'daylight_duration']
     )
@@ -154,8 +142,9 @@ class RandomForestModel(BaseModel):
         hyperparameter_search: bool = False,
         n_iter_search: int = 20,
         cv_folds: int = 5,
+        cv: Optional[Any] = None,
+        cv_group_by: Optional[str] = None,
         random_state: Optional[int] = 42,
-        dataset_key: Optional[str] = None,
         data_keys: Optional[List[str]] = None,
         **kwargs,
     ) -> Tuple['RandomForestModel', Dict[str, Any]]:
@@ -171,7 +160,6 @@ class RandomForestModel(BaseModel):
             n_iter_search:         Number of parameter settings to try in the search.
             cv_folds:              Cross-validation folds for the search.
             random_state:          Seed for reproducibility.
-            dataset_key:           Look up pre-tuned kwargs from internal table.
             data_keys:             Feature keys to include.
 
         Returns:
@@ -185,10 +173,6 @@ class RandomForestModel(BaseModel):
 
         if data_keys is not None:
             model_kwargs.setdefault('data_keys', data_keys)
-
-        if dataset_key is not None and dataset_key in _MAP_KWARGS:
-            for k, v in _MAP_KWARGS[dataset_key].items():
-                model_kwargs.setdefault(k, v)
 
         if 'random_state' not in model_kwargs:
             model_kwargs['random_state'] = random_state
@@ -205,16 +189,24 @@ class RandomForestModel(BaseModel):
 
         if hyperparameter_search:
             base_rf = RandomForestRegressor(random_state=random_state, n_jobs=-1)
+            cv_eff = cv if cv is not None else cv_folds
+            groups = (
+                np.array([s[cv_group_by] for s in samples])
+                if cv_group_by is not None else None
+            )
             search = RandomizedSearchCV(
                 base_rf,
                 param_distributions=_PARAM_DIST,
                 n_iter=n_iter_search,
-                cv=cv_folds,
+                cv=cv_eff,
                 scoring='neg_mean_absolute_error',
                 random_state=random_state,
                 n_jobs=-1,
             )
-            search.fit(X, y)
+            if groups is not None:
+                search.fit(X, y, groups=groups)
+            else:
+                search.fit(X, y)
             best = search.best_params_
             fit_info['best_params'] = best
             fit_info['best_cv_score'] = -search.best_score_
@@ -249,7 +241,6 @@ class RandomForestModel(BaseModel):
             n_iter_search=model_args.n_iter_search,
             cv_folds=model_args.cv_folds,
             random_state=model_args.random_state,
-            dataset_key=model_args.dataset_key,
             data_keys=model_args.data_keys,
             **kwargs,
         )

@@ -1,18 +1,25 @@
 """
-1D-CNN phenology model.
+1D-CNN phenology model (causal dilated TCN).
 
 Convolutional counterpart to :class:`pysephone.models.lstm.LSTMModel`.  A full
-season of daily meteorological features is encoded by a stack of *causal* 1-D
-convolutions and projected through a pointwise linear head to a per-day
-sigmoid probability curve.  The predicted event day is the day with the
-largest increase in probability (i.e. the argmax of the first difference).
+season of daily meteorological features is encoded by a stack of *causal,
+dilated* 1-D convolutions (TCN-style) and projected through a pointwise linear
+head to a per-day sigmoid probability curve.  The predicted event day is the
+day with the largest increase in probability (i.e. the argmax of the first
+difference).
+
+Exponentially growing dilations (``dilation_base ** layer_index``) give the
+encoder a receptive field of ``1 + (kernel_size - 1) * sum_i dilation_i`` days
+at the final layer.  With defaults ``kernel_size=3, num_layers=8,
+dilation_base=2`` the receptive field is 511 days — comfortably more than a
+365-day season, so the activation at day ``t`` integrates the full prefix
+``[0, t]``.  This is what makes the soft step-function BCE label and the
+first-difference prediction rule meaningful: with a small receptive field the
+per-day probability degenerates into "is the event happening right now based
+on recent weather," which is not biologically grounded.
 
 Causal padding keeps the same left-to-right semantics as the LSTM: the
-probability at day ``t`` depends only on inputs at days ``<= t``.  This is
-what makes the soft step-function BCE label and the first-difference
-prediction rule meaningful — a non-causal encoder would let day ``t`` peek
-at the future, which would distort the interpretation of the probability
-curve.
+probability at day ``t`` depends only on inputs at days ``<= t``.
 
 Training uses binary cross-entropy against a soft step-function label: 0
 before the observed event day, 1 from that day onwards (identical to the
@@ -28,8 +35,9 @@ Example::
         model_kwargs=dict(
             data_keys=['temperature_2m_mean'],
             hidden_size=64,
-            num_layers=4,
-            kernel_size=7,
+            num_layers=8,
+            kernel_size=3,
+            dilation_base=2,
         ),
         num_epochs=50,
         batch_size=32,
@@ -56,13 +64,17 @@ from pysephone.utils.func_torch import create_left_mask
 
 @dataclass
 class CNN1DModelArgs(BaseTorchModelArgs):
-    """Arguments for :class:`CNN1DModel`.
+    """Arguments for :class:`CNN1DModel` (causal dilated TCN).
 
     Attributes:
         data_keys:           Weather variable names to use as input features.
         hidden_size:         Channel count of each causal conv layer.
         num_layers:          Number of stacked causal conv layers.
         kernel_size:         Kernel size of each causal conv layer.
+        dilation_base:       Layer ``i`` uses dilation ``dilation_base ** i``.
+                             ``dilation_base=1`` reproduces a non-dilated stack
+                             (small receptive field, generally not recommended
+                             — see the module docstring).
         num_layers_lin:      Depth of the pointwise linear head (>= 1).
         feature_statistics:  Optional ``{key: (mean, std)}`` dict for input
                              normalisation.  ``None`` -> use
@@ -73,24 +85,29 @@ class CNN1DModelArgs(BaseTorchModelArgs):
     """
     data_keys: List[str] = field(default_factory=lambda: ['temperature_2m_mean'])
     hidden_size: int = 64
-    num_layers: int = 4
-    kernel_size: int = 7
+    num_layers: int = 8
+    kernel_size: int = 3
+    dilation_base: int = 2
     num_layers_lin: int = 2
     feature_statistics: Optional[Dict[str, Tuple[float, float]]] = None
     obs_features: Optional[List[str]] = None
 
 
 class CNN1DModel(BaseTorchModel):
-    """1D-CNN phenology model (causal, undilated).
+    """1D-CNN phenology model (causal dilated TCN).
 
     Architecture:
 
     * **Input**: per-day meteorological features (plus optional binary mask
       features for observed prior events), normalised with *feature_statistics*.
     * **Encoder**: stack of ``num_layers`` causal 1-D convolutions
-      (``kernel_size``-wide, ``hidden_size`` channels, dilation 1) with ReLU
-      activations between layers.  Causal padding ensures the activation at
-      day ``t`` depends only on inputs at days ``<= t``.
+      (``kernel_size``-wide, ``hidden_size`` channels) with ReLU activations
+      between layers.  Layer ``i`` uses dilation ``dilation_base ** i``, so
+      the receptive field grows exponentially with depth and reaches
+      ``1 + (kernel_size - 1) * (dilation_base ** num_layers - 1) /
+      (dilation_base - 1)`` days at the final layer (for ``dilation_base > 1``).
+      Causal padding ensures the activation at day ``t`` depends only on
+      inputs at days ``<= t``.
     * **Head**: pointwise linear stack (``num_layers_lin`` 1x1 convs) mapping
       channel activations to a single sigmoid probability per day.
     * **Prediction**: day with the largest first-difference in the probability
@@ -101,6 +118,7 @@ class CNN1DModel(BaseTorchModel):
         hidden_size:        Channel count of each causal conv layer.
         num_layers:         Number of stacked causal conv layers.
         kernel_size:        Kernel size of each causal conv layer.
+        dilation_base:      Layer ``i`` uses dilation ``dilation_base ** i``.
         num_layers_lin:     Depth of the pointwise linear head (>= 1).
         feature_statistics: ``{key: (mean, std)}`` for input normalisation.
                             ``None`` -> use
@@ -113,8 +131,9 @@ class CNN1DModel(BaseTorchModel):
         self,
         data_keys: List[str],
         hidden_size: int = 64,
-        num_layers: int = 4,
-        kernel_size: int = 7,
+        num_layers: int = 8,
+        kernel_size: int = 3,
+        dilation_base: int = 2,
         num_layers_lin: int = 2,
         feature_statistics: Optional[Dict[str, Tuple[float, float]]] = None,
         obs_features: Optional[List[str]] = None,
@@ -122,6 +141,7 @@ class CNN1DModel(BaseTorchModel):
         assert hidden_size > 0
         assert num_layers > 0
         assert kernel_size > 0
+        assert dilation_base >= 1
         assert num_layers_lin > 0
 
         super().__init__()
@@ -139,8 +159,9 @@ class CNN1DModel(BaseTorchModel):
 
         layers: List[nn.Module] = []
         in_c = num_input_features
-        for _ in range(num_layers):
-            layers.append(CausalConv1d(in_c, hidden_size, kernel_size, dilation=1))
+        for i in range(num_layers):
+            dilation = dilation_base ** i
+            layers.append(CausalConv1d(in_c, hidden_size, kernel_size, dilation=dilation))
             layers.append(nn.ReLU())
             in_c = hidden_size
         self._encoder = nn.Sequential(*layers)
