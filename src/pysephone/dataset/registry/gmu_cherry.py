@@ -134,6 +134,27 @@ def build_gmu_cherry_japan_ys(**kwargs) -> Observations:
     return obs
 
 
+def build_gmu_cherry_japan_s(**kwargs) -> Observations:
+    """Japan — Cerasus sargentii locations only."""
+    from pysephone.data.gmu_cherry.regions_data import LOCATIONS_JAPAN_SARGENTII
+
+    dfs = get_gmu_cherry_dataset_japan(
+        remove_outliers=False,  # Multiple species — outlier removal skipped
+        datetime_observations=True,
+    )
+    obs = Observations(dfs['data'], dfs['locations'])
+    obs = obs.select_years(_BM_YEARS)
+
+    locations_s = [(_GMU_SRC, loc.replace('/', '__')) for loc in LOCATIONS_JAPAN_SARGENTII.keys()]
+    obs = obs.select_locations(locations_s)
+
+    if _BM_ASSERT_TARGET:
+        obs = obs.select_by_observation_requirement('gmu_0')
+    if _BM_DO_AGG:
+        obs = obs.aggregate_in_grid(method=_BM_AGG_METHOD)
+    return obs
+
+
 # ---------------------------------------------------------------------------
 # GMU Cherry — TBE (Test Earth Embedding) variants
 # ---------------------------------------------------------------------------
@@ -227,6 +248,7 @@ DATASETS = {
     'GMU_Cherry_Switzerland': build_gmu_cherry_switzerland,
     'GMU_Cherry_South_Korea': build_gmu_cherry_south_korea,
     'GMU_Cherry_Japan_Y':     build_gmu_cherry_japan_y,
+    'GMU_Cherry_Japan_S':     build_gmu_cherry_japan_s,
     'GMU_Cherry_Japan_YS':    build_gmu_cherry_japan_ys,
     # TBE variants
     'TBE_GMU_Cherry_Japan':       build_tbe_gmu_cherry_japan,
