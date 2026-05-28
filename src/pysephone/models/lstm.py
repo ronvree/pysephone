@@ -127,11 +127,27 @@ class LSTMModel(BaseTorchModel):
             num_layers=num_layers,
         )
 
-        self._lin = PointwiseHead(
+        self._lin = self._build_head(
             num_layers=num_layers_lin,
             in_size=hidden_size,
             hidden_size=hidden_size,
             out_size=1,
+        )
+
+    @staticmethod
+    def _build_head(
+        num_layers: int, in_size: int, hidden_size: int, out_size: int
+    ) -> PointwiseHead:
+        """Construct the pointwise output head.
+
+        Factored out so subclasses (e.g. context-conditioned variants) can
+        rebuild the head with a different input width.
+        """
+        return PointwiseHead(
+            num_layers=num_layers,
+            in_size=in_size,
+            hidden_size=hidden_size,
+            out_size=out_size,
         )
 
     # ------------------------------------------------------------------
