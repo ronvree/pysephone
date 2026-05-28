@@ -41,8 +41,11 @@ Requires Python ≥ 3.14.
 |---|---|
 | **PEP725** | Pan-European Phenology Database — multi-species observations across Europe |
 | **GMU Cherry Blossom** | Cherry blossom bloom dates from Japan, Switzerland, and South Korea |
+| **USA-NPN** | USA National Phenology Network — deciduous fruit-tree observations |
+| **AgERA5** | Daily agrometeorological indicators from Copernicus CDS (downscaled temperature/radiation, Penman–Monteith inputs, etc.) |
+| **Open-Meteo ERA5** | ERA5 reanalysis via the Open-Meteo archive |
 
-Meteorological data is fetched from ERA5 reanalysis via the Open-Meteo archive and cached locally in HDF5 for fast repeated access. Other meteorological drivers can be integrated by implementing the `FeatureProvider` interface.
+Meteorological data is cached locally in HDF5 for fast repeated access. Additional providers can be integrated by implementing the `FeatureProvider` interface.
 
 <br>
 
@@ -77,12 +80,50 @@ The `Calendar` defines the season window (start date + length) for each entry. F
 
 <br>
 
+## Reproducing BloomBench
+
+[BloomBench](https://github.com/WUR-AI/BloomBench) is a multi-species benchmark for evaluating ML phenology models on fruit-tree flowering. The benchmark is shipped as a first-class library module: [`pysephone.benchmarks.bloombench`](src/pysephone/benchmarks/bloombench/).
+
+It exposes both a Python API and a thin CLI:
+
+```bash
+# 1. Populate the AgERA5 cache once (Copernicus CDS credentials required).
+jupyter nbconvert --execute notebooks/download_agera5.ipynb
+
+# 2. Tune hyperparameters per (dataset, model) — overnight run.
+python -m pysephone.benchmarks.bloombench hpo
+
+# 3. Fit & evaluate every (seed, dataset, model) triple.
+python -m pysephone.benchmarks.bloombench run --seeds 0 1 2
+
+# 4. Friedman + Nemenyi + critical-difference plots.
+python -m pysephone.benchmarks.bloombench compare --seeds 0 1 2
+```
+
+The same flow as Python:
+
+```python
+from pysephone.benchmarks.bloombench import (
+    load_bloombench_datasets, run_benchmark, run_comparison, run_hpo,
+)
+
+datasets, _ = load_bloombench_datasets()
+run_hpo(datasets)                                      # one-time HPO
+results = run_benchmark(seeds=[0, 1, 2], datasets_dict=datasets)
+report = run_comparison(seeds=[0, 1, 2])
+```
+
+For the interactive flow with tables / heatmaps / critical-difference plots, see [`notebooks/bloombench_extended_hpo.ipynb`](notebooks/bloombench_extended_hpo.ipynb) (one-time HPO) and [`notebooks/bloombench_extended.ipynb`](notebooks/bloombench_extended.ipynb) (replication).
+
+<br>
+
 ## Project Structure
 
 ```
 .
 ├── src/pysephone/
-│   ├── data/           # Data ingestion and sources (PEP725, GMU Cherry, ERA5)
+│   ├── benchmarks/     # End-to-end benchmark suites (BloomBench, …)
+│   ├── data/           # Data ingestion and sources (PEP725, GMU Cherry, USA-NPN, AgERA5)
 │   ├── dataset/        # Observations, Dataset, Calendar, feature providers, registry
 │   ├── evaluation/     # Evaluation logic and regression metrics
 │   ├── models/         # Model implementations (CF, RF, LSTM, Hybrid, …)

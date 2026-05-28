@@ -30,6 +30,9 @@ dependencies = [
     "shapely",
     "h5py",
     "rasterio",
+    "cdsapi",
+    "xarray",
+    "netCDF4",
 ]
 
 [project.optional-dependencies]
