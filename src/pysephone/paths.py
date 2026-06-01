@@ -3,8 +3,18 @@ import re
 
 from pathlib import Path
 
+from platformdirs import user_data_dir
+
 
 ENV_DATA_ROOT = "PYSEPHONE_DATA_ROOT"
+
+# Google Earth Engine project (GCP project with the Earth Engine API enabled).
+# Used to initialize Earth Engine when fetching AlphaEarth embeddings. No project
+# is shipped with the library — users supply their own via the ee_project argument
+# or one of these environment variables.
+ENV_EE_PROJECT = "PYSEPHONE_EE_PROJECT"
+# Earth Engine's own native env var, honored as a secondary fallback.
+ENV_EE_PROJECT_NATIVE = "EARTHENGINE_PROJECT"
 
 """
     Roots
@@ -14,9 +24,40 @@ def get_repo_root() -> Path:
     return Path(__file__).resolve().parents[2]
 
 def get_data_root() -> Path:
-    return Path(
-        os.environ.get(ENV_DATA_ROOT, get_repo_root())
-    ).expanduser()
+    """
+    Resolve the root directory under which all data, caches, and outputs live.
+
+    Order:
+      1. the PYSEPHONE_DATA_ROOT environment variable, if set
+      2. an OS-native per-user data directory (e.g. %LOCALAPPDATA%\\pysephone on
+         Windows, ~/.local/share/pysephone on Linux/macOS)
+
+    Note: this intentionally does NOT default to the repo/package directory — an
+    installed package lives in a read-only site-packages location. To keep data
+    inside a source checkout during development, set PYSEPHONE_DATA_ROOT=<repo>.
+    """
+    env = os.environ.get(ENV_DATA_ROOT)
+    if env:
+        return Path(env).expanduser()
+    return Path(user_data_dir("pysephone", appauthor=False))
+
+def get_ee_project(explicit: str | None = None) -> str | None:
+    """
+    Resolve the Earth Engine GCP project to use.
+
+    Resolution order (all optional — returns None if nothing is set, in which
+    case Earth Engine is left to resolve its own default project):
+      1. the explicit argument (e.g. an ee_project= passed by the caller)
+      2. the PYSEPHONE_EE_PROJECT environment variable
+      3. Earth Engine's native EARTHENGINE_PROJECT environment variable
+    """
+    if explicit:
+        return explicit
+    return (
+        os.environ.get(ENV_EE_PROJECT)
+        or os.environ.get(ENV_EE_PROJECT_NATIVE)
+        or None
+    )
 
 """
     Paths of main folder structure (relative to root)

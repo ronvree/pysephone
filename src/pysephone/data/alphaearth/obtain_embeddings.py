@@ -347,8 +347,7 @@
 #     store = AlphaEarthEmbeddingStore()
 #
 #     # If you need to specify a billing/project for EE:
-#     # location_id, embs = store.get_embeddings_all_years(lat, lon, ee_project="YOUR_GCP_PROJECT")
-#     location_id, embs = store.get_embeddings_all_years(lat, lon, ee_project="phenologyembeddings")
+#     location_id, embs = store.get_embeddings_all_years(lat, lon, ee_project="YOUR_GCP_PROJECT")
 #
 #     print("location_id:", location_id)
 #     print("years:", sorted(embs.keys()))
@@ -391,7 +390,7 @@ import numpy as np
 
 from tqdm import tqdm
 
-from pysephone.paths import get_data_root, get_products_data_dir
+from pysephone.paths import get_data_root, get_ee_project, get_products_data_dir
 
 
 def _require_ee():
@@ -402,7 +401,8 @@ def _require_ee():
     except ImportError as exc:
         raise ImportError(
             "earthengine-api is required to fetch new AlphaEarth embeddings. "
-            "Install with: pip install earthengine-api"
+            'Install with: pip install "pysephone[earthengine]" '
+            "(or: pip install earthengine-api)"
         ) from exc
     return ee
 
@@ -567,9 +567,12 @@ def fetch_alphaearth_embeddings_batched(
     - batch_size: 200-1000 typically works; too large may hit response limits/timeouts.
     """
     ee = _require_ee()
-    # Initialize EE (safe to call multiple times)
-    if ee_project:
-        ee.Initialize(project=ee_project)
+    # Initialize EE (safe to call multiple times). Resolve the project from the
+    # explicit argument, then PYSEPHONE_EE_PROJECT / EARTHENGINE_PROJECT env vars.
+    # If nothing is set, let Earth Engine resolve its own default project.
+    project = get_ee_project(ee_project)
+    if project:
+        ee.Initialize(project=project)
     else:
         ee.Initialize()
 
@@ -757,7 +760,9 @@ if __name__ == "__main__":
         store=store,
         batch_size=500,
         scale=10,
-        ee_project="phenologyembeddings",
+        # Supply your own Earth Engine GCP project here, or set the
+        # PYSEPHONE_EE_PROJECT / EARTHENGINE_PROJECT environment variable.
+        ee_project=None,
     )
 
     for lid, by_year in res.items():

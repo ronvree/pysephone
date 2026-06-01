@@ -86,7 +86,11 @@ class PEP725Entry:
             p for p in self.path_data_folder(root).iterdir()
             if p.name.startswith(f'PEP725_{cc}_') and p.name != f'PEP725_{cc}_stations.csv'
         ]
-        assert len(files) == 1, f'Expected one observations file, found: {files}'
+        if len(files) != 1:
+            raise RuntimeError(
+                f'Expected exactly one PEP725 observations file for country '
+                f'{cc!r}, found: {files}'
+            )
         df = pd.read_csv(files[0], sep=';')
         if set_index:
             df.set_index(['PEP_ID', 'YEAR'], inplace=True)
@@ -225,7 +229,16 @@ def create_events_df(entries: set, root: Path) -> pd.DataFrame:
 
 
 def _read_credentials(path: Path) -> tuple[str, str]:
-    assert path.exists(), f'PEP725 credentials file not found: {path}'
+    if not path.exists():
+        raise FileNotFoundError(
+            f"PEP725 credentials file not found: {path}\n"
+            "PEP725 phenology data requires a (free) account. Register at "
+            "https://www.pep725.eu/, then create this file containing a single "
+            "line of '<username> <password>' (space-separated).\n"
+            "The location is derived from the data root; set the "
+            "PYSEPHONE_DATA_ROOT environment variable to change where pysephone "
+            "looks for data and credentials."
+        )
     tokens = path.read_text().split(' ')
     return tokens[0], ' '.join(tokens[1:])
 

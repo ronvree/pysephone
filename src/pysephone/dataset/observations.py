@@ -343,7 +343,10 @@ class Observations:
     ) -> "Observations":
         """Keep only (src, loc_id, species_id, subgroup_id) groups with at least
         num_observations entries of obs_key."""
-        assert num_observations >= 0
+        if num_observations < 0:
+            raise ValueError(
+                f"num_observations must be >= 0, got {num_observations}"
+            )
         if num_observations == 0:
             return self._new(self._df_y)
 

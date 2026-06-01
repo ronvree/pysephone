@@ -3,11 +3,9 @@ import time
 from dataclasses import dataclass
 from pathlib import Path
 
-import openmeteo_requests
 import pandas as pd
 import requests_cache
 import tables  # Required by pandas HDFStore with PyTables backend
-from openmeteo_requests.Client import OpenMeteoRequestsError
 from retry_requests import retry
 from tqdm import tqdm
 
@@ -255,6 +253,19 @@ def _check_entries_missing(entries: set, stores: OpenMeteoStores, verbose: bool 
     return missing
 
 
+def _require_openmeteo():
+    """Import openmeteo-requests lazily. Only needed to download new OpenMeteo
+    data, not to read data already cached on disk."""
+    try:
+        import openmeteo_requests  # type: ignore
+    except ImportError as exc:
+        raise ImportError(
+            "openmeteo-requests is required to download OpenMeteo data. "
+            'Install with: pip install "pysephone[openmeteo]"'
+        ) from exc
+    return openmeteo_requests
+
+
 def _download_entries(
     entries: set,
     stores: OpenMeteoStores,
@@ -264,6 +275,9 @@ def _download_entries(
     """Download the given entries from the OpenMeteo API and write them to stores."""
     if not entries:
         return
+
+    openmeteo_requests = _require_openmeteo()
+    from openmeteo_requests.Client import OpenMeteoRequestsError
 
     cache_session = requests_cache.CachedSession('.cache', expire_after=-1)
     retry_session = retry(cache_session, retries=5, backoff_factor=0.2)

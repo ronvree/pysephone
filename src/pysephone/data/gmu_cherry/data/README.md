@@ -91,14 +91,3 @@ The data file *south_korea.csv* contains **first flowering dates** for various s
 
 Source: Korean Meteorological Administration.
 
-### USA National Phenology Network
-
-Additional data were provided by the USA National Phenology Network and the many participants who contribute to its *Nature’s Notebook* program.
-
-###### Copyright notice
-
-- *USA-NPN_individual_phenometrics_data.csv:*
-USA National Phenology Network. 2022. Plant and Animal Phenology Data. Data type: Individual Phenometrics. 2009--2021. USA-NPN, Tucson, Arizona, USA. Data set accessed 2022-01-13 at http://doi.org/10.5066/F78S4N1V.
-- *USA-NPN_status_intensity_data.csv:*
-USA National Phenology Network. 2022. Plant and Animal Phenology Data. Data type: Status and Intensity. 2009--2021. USA-NPN, Tucson, Arizona, USA. Data set accessed 2022-01-13 at http://doi.org/10.5066/F78S4N1V.
-

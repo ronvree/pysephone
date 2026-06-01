@@ -5,41 +5,79 @@ build-backend = "setuptools.build_meta"
 [project]
 name = "pysephone"
 version = "0.1.0"
-description = "TODO"
+description = "A Python library for using machine learning to predict the timing of phenological events in plants"
 authors = [
-    { name = "TODO" }
+    { name = "Ron van Bree", email = "ronvbree@gmail.com" }
 ]
 license = { file = "LICENSE" }
+readme = "README.md"
 requires-python = ">=3.14"
+keywords = [
+    "phenology",
+    "machine-learning",
+    "bloom",
+    "agriculture",
+    "remote-sensing",
+]
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "Intended Audience :: Science/Research",
+    "License :: OSI Approved :: MIT License",
+    "Programming Language :: Python :: 3",
+    "Topic :: Scientific/Engineering",
+]
+# Base install — lightweight core: datasets, observations, process-based and
+# scikit-learn models, evaluation. Heavy / source-specific dependencies live in
+# the optional-dependency groups below.
 dependencies = [
     "pandas",
-    "requests",
+    "numpy>=1.23",
+    "scipy",
+    "scikit-learn",
+    "matplotlib",
     "tqdm",
-    "unidecode",
-    "tables",
-    "openmeteo-requests",
+    "requests",
     "requests-cache",
     "retry-requests",
-    "numpy",
-    "scikit-learn",
-    "xgboost",
-    "matplotlib",
-    "torch",
+    "unidecode",
     "nlopt",
-    "geopandas",
-    "shapely",
+    "tables",
     "h5py",
-    "rasterio",
-    "cdsapi",
-    "xarray",
-    "netCDF4",
+    "platformdirs",
 ]
 
 [project.optional-dependencies]
-stats = [
-    "scikit-posthocs",
-    "autorank",
-]
+# Deep-learning models (LSTM, GRU, CNN, Transformer, hybrids, Beta/BSpline GDD).
+deep = ["torch>=2.0"]
+# Gradient-boosted-tree model.
+boost = ["xgboost>=1.7"]
+# AgERA5 (Copernicus CDS) downloading.
+agera5 = ["cdsapi", "xarray", "netCDF4"]
+# Open-Meteo ERA5 downloading.
+openmeteo = ["openmeteo-requests"]
+# Geospatial features (map visualizations, WorldClim rasters).
+geo = ["geopandas", "shapely", "rasterio"]
+# AlphaEarth embedding fetching via Google Earth Engine.
+earthengine = ["earthengine-api"]
+# Statistical model-comparison (Friedman/Nemenyi, critical-difference plots).
+stats = ["scikit-posthocs", "autorank"]
+# Everything — convenient for reproducing the full BloomBench benchmark.
+all = ["pysephone[deep,boost,agera5,openmeteo,geo,earthengine,stats]"]
+
+[project.urls]
+Homepage = "https://github.com/ronvree/pysephone"
+Repository = "https://github.com/ronvree/pysephone"
+
+[tool.setuptools]
+# Ship the license and the bundled-data attribution/NOTICE with every artifact.
+license-files = ["LICENSE", "DATA_SOURCES.md"]
 
 [tool.setuptools.packages.find]
 where = ["src"]
+
+[tool.setuptools.package-data]
+pysephone = [
+    "data/**/*.csv",
+    "data/**/*.geojson",
+    "data/**/*.md",
+]
