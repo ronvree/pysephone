@@ -1,0 +1,92 @@
+# Build and publish pysephone to PyPI using Trusted Publishing (OIDC).
+#
+# ONE-TIME SETUP on PyPI (https://pypi.org/manage/account/publishing/):
+#   Add a "pending publisher" with these exact values:
+#     PyPI Project Name : pysephone
+#     Owner             : ronvree
+#     Repository name   : pysephone
+#     Workflow name     : publish.yml        <- must match THIS file's name
+#     Environment name  : pypi
+#   Do the same on https://test.pypi.org/ with environment name: testpypi
+#
+# No API tokens or secrets are stored: the `id-token: write` permission lets
+# GitHub mint a short-lived OIDC token that PyPI trusts.
+#
+# HOW TO RELEASE:
+#   - Publish to PyPI: create a GitHub Release for the version (Releases -> Draft
+#     a new release -> tag e.g. v0.1.0 -> Publish). The `release: published`
+#     event runs the pypi-publish job.
+#   - Rehearse on TestPyPI first: Actions tab -> "Publish" -> Run workflow,
+#     which targets TestPyPI.
+
+name: Publish
+
+on:
+  release:
+    types: [published]
+  workflow_dispatch: {}   # manual run -> publishes to TestPyPI
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    name: Build distributions
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.14'
+
+      - name: Build sdist and wheel
+        run: |
+          python -m pip install --upgrade build twine
+          python -m build
+          python -m twine check dist/*
+
+      - name: Upload artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: dist
+          path: dist/
+
+  testpypi-publish:
+    name: Publish to TestPyPI
+    if: github.event_name == 'workflow_dispatch'
+    needs: build
+    runs-on: ubuntu-latest
+    environment: testpypi
+    permissions:
+      id-token: write        # required for trusted publishing (OIDC)
+    steps:
+      - name: Download artifacts
+        uses: actions/download-artifact@v4
+        with:
+          name: dist
+          path: dist/
+
+      - name: Publish to TestPyPI
+        uses: pypa/gh-action-pypi-publish@release/v1
+        with:
+          repository-url: https://test.pypi.org/legacy/
+
+  pypi-publish:
+    name: Publish to PyPI
+    if: github.event_name == 'release'
+    needs: build
+    runs-on: ubuntu-latest
+    environment: pypi
+    permissions:
+      id-token: write        # required for trusted publishing (OIDC)
+    steps:
+      - name: Download artifacts
+        uses: actions/download-artifact@v4
+        with:
+          name: dist
+          path: dist/
+
+      - name: Publish to PyPI
+        uses: pypa/gh-action-pypi-publish@release/v1
