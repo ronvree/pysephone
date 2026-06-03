@@ -37,7 +37,7 @@ import matplotlib.pyplot as plt
 
 from pysephone.dataset.registry import REGISTRY
 from pysephone.dataset.dataset import Dataset
-from pysephone.paths import get_repo_root
+from pysephone.paths import get_data_root
 from pysephone.visualize.dataset import (
     observation_doy_histograms,
     observation_doy_over_time,
@@ -145,7 +145,7 @@ def main(argv: list[str] | None = None) -> int:
 
     keys = args.datasets if args.datasets is not None else sorted(REGISTRY)
     formats = tuple(args.formats)
-    base_out = get_repo_root() / 'outputs' / 'visualize_datasets'
+    base_out = get_data_root() / 'outputs' / 'visualize_datasets'
 
     failed: list[str] = []
 
