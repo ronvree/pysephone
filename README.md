@@ -3,7 +3,7 @@
 # pysephone
 
 [![PyPI](https://img.shields.io/pypi/v/pysephone)](https://pypi.org/project/pysephone/)
-![python](https://img.shields.io/badge/python-3.14%2B-blue)
+![python](https://img.shields.io/badge/python-3.12%2B-blue)
 [![license](https://img.shields.io/badge/License-MIT-green.svg?labelColor=gray)](LICENSE)
 
 </div>
@@ -32,7 +32,7 @@ cd pysephone
 pip install -e .
 ```
 
-Requires Python ≥ 3.14.
+Requires Python ≥ 3.12.
 
 The base install is intentionally lightweight (process-based + scikit-learn models, datasets, evaluation). Heavier and source-specific dependencies are opt-in via extras:
 

@@ -14,7 +14,7 @@ The benchmark is built on the rest of `pysephone`: [`Dataset`](../../dataset/dat
 
 ## Prerequisites
 
-1. Python ≥ 3.14 and a working install of `pysephone` (`pip install -e .` from the repo root).
+1. Python ≥ 3.12 and a working install of `pysephone` (`pip install -e .` from the repo root).
 2. Copernicus CDS credentials configured (so `AgEra5Features.download` can pull data). See [the CDS API guide](https://cds.climate.copernicus.eu/api-how-to) for the standard `~/.cdsapirc` setup.
 3. *(Optional)* `pysephone[stats]` extra for the Friedman + Nemenyi + critical-difference outputs:
 

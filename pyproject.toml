@@ -11,7 +11,7 @@ authors = [
 ]
 license = { file = "LICENSE" }
 readme = "README.md"
-requires-python = ">=3.14"
+requires-python = ">=3.12"
 keywords = [
     "phenology",
     "machine-learning",
@@ -24,6 +24,9 @@ classifiers = [
     "Intended Audience :: Science/Research",
     "License :: OSI Approved :: MIT License",
     "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.12",
+    "Programming Language :: Python :: 3.13",
+    "Programming Language :: Python :: 3.14",
     "Topic :: Scientific/Engineering",
 ]
 # Base install — lightweight core: datasets, observations, process-based and
