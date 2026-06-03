@@ -1,5 +1,7 @@
 <div align="center">
 
+<img src="assets/logo.png" alt="pysephone logo" width="280">
+
 # pysephone
 
 [![PyPI](https://img.shields.io/pypi/v/pysephone)](https://pypi.org/project/pysephone/)
@@ -177,21 +179,6 @@ For the interactive flow with tables / heatmaps / critical-difference plots, see
 ├── tests/              # Test suite
 └── data/               # Raw and processed data (git-ignored)
 ```
-
-<br>
-
-## Notebooks
-
-| Notebook | Description |
-|---|---|
-| `cherry_blossom_cf_models.ipynb` | Process-based model evaluation on GMU Cherry datasets |
-| `cf_models_pep725_fruit_trees.ipynb` | CF model evaluation across PEP725 fruit tree species |
-| `unusual_year_model_eval.ipynb` | Model comparison on climatologically unusual vs normal years |
-| `unusual_seasons_*.ipynb` | Exploration of unusual seasons in GMU / PEP725 data |
-| `dataset_adequacy_*.ipynb` | Sample sufficiency analysis per dataset |
-| `lstm_cherry_exploration.ipynb` | LSTM model exploration on cherry blossom data |
-| `model_exploration.ipynb` | General model exploration notebook |
-| `pvtt_winter_wheat.ipynb` | PVTT model for winter wheat phenology |
 
 <br>
 
