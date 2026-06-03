@@ -2,6 +2,7 @@
 
 # pysephone
 
+[![PyPI](https://img.shields.io/pypi/v/pysephone)](https://pypi.org/project/pysephone/)
 ![python](https://img.shields.io/badge/python-3.14%2B-blue)
 [![license](https://img.shields.io/badge/License-MIT-green.svg?labelColor=gray)](LICENSE)
 
