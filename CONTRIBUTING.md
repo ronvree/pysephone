@@ -1,6 +1,6 @@
 # Contributing
 
-Thank you very much for contributing to PhenoBench! Below are some guidelines to ensure we can integrate new contributions effectively.
+Thank you very much for contributing to pysephone! Below are some guidelines to ensure we can integrate new contributions effectively.
 
 When contributing to this repository, please first discuss the change you wish to make, preferably via an Issue, with the administrators of this repository before making a change.
 
